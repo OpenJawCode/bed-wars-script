@@ -1,0 +1,37 @@
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Lua / Luau
+*.luac
+*.luau-cache
+
+# Logs
+*.log
+logs/
+
+# Executor-local config (per-user)
+bedwars_config.json
+
+# Research / scratch (kept out of git)
+/tmp/
+research/
+*.research.md
+
+# AI tooling (per project convention)
+.opencode/
+.claude/
+AGENTS.md
+CLAUDE.md
+
+# Docs we don't ship
+bugs-log.md
+mistake-log.md
+todos.md
+plans/
+
+# Build artifacts (if any future build step)
+dist/
+build/

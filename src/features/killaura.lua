@@ -10,14 +10,16 @@
 -- The 14.399 magic number is the legit attack reach. Extending selfPosition
 -- along the look vector by the surplus distance bypasses the server's reach check.
 
+
+local _BW = (getgenv and getgenv()._BW) or _G._BW
 local RunService  = game:GetService("RunService")
 local Workspace   = game:GetService("Workspace")
 
-local Services    = require(script.Parent.Parent.services)
-local GameWksp    = require(script.Parent.Parent.game.workspace)
-local Remotes     = require(script.Parent.Parent.game.remotes)
-local Logger      = require(script.Parent.Parent.util.logger)
-local PlaceId     = require(script.Parent.Parent.game.placeid)
+local Services    = _BW.Services
+local GameWksp    = _BW.GameWksp
+local Remotes     = _BW.Remotes
+local Logger      = _BW.Logger
+local PlaceId     = _BW.PlaceId
 
 local Killaura = {
   enabled = false,

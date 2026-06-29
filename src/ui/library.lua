@@ -15,17 +15,19 @@
 --
 -- Mobile-first: bottom tabs, 56pt touch targets, snap-to-edge drag, haptic on tap.
 
+
+local _BW = (getgenv and getgenv()._BW) or _G._BW
 local Players            = game:GetService("Players")
 local UserInputService   = game:GetService("UserInputService")
 local TweenService       = game:GetService("TweenService")
 local RunService         = game:GetService("RunService")
 
-local Theme   = require(script.Parent.theme)
-local Tween   = require(script.Parent.Parent.util.tween)
-local Dragger = require(script.Parent.Parent.util.dragger)
-local Input   = require(script.Parent.Parent.util.input)
-local Anim    = require(script.Parent.animations)
-local Icons   = require(script.Parent.icons)
+local Theme   = _BW.Theme
+local Tween   = _BW.Tween
+local Dragger = _BW.Dragger
+local Input   = _BW.Input
+local Anim    = _BW.Anim
+local Icons   = _BW.Icons
 
 local Library = {}
 
@@ -224,6 +226,7 @@ function Library:CreateWindow(settings)
   win.Position = UDim2.new(0.5, -190, 0.5, -240)
   win.Visible = false
   win.ZIndex = 10
+  win.ClipsDescendants = true  -- CRITICAL: clips header/tabs during open/close animation
   applyGlass(win, { radius = Theme.Radius.Card, transparency = Theme.Alpha.GlassPanel })
   self.window = win
 
@@ -486,6 +489,7 @@ function Library._createSection(tab, name)
   container.Size = UDim2.new(1, 0, 0, 0)
   container.AutomaticSize = Enum.AutomaticSize.Y
   container.LayoutOrder = (#tab.sections * 1000) + 1
+  container.ClipsDescendants = true  -- clips flat rows to the rounded container shape
   applyGlass(container, { radius = Theme.Radius.Card, transparency = Theme.Alpha.GlassCard })
 
   local cl = Instance.new("UIListLayout")

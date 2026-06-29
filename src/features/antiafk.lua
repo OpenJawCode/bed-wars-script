@@ -5,10 +5,12 @@
 --   2. Wiggle the camera by 0.01 radians every 30s as backup
 -- Web dev mental model: this is our "keep-alive ping".
 
+
+local _BW = (getgenv and getgenv()._BW) or _G._BW
 local RunService = game:GetService("RunService")
-local Services   = require(script.Parent.Parent.services)
-local Remotes     = require(script.Parent.Parent.game.remotes)
-local Logger      = require(script.Parent.Parent.util.logger)
+local Services   = _BW.Services
+local Remotes     = _BW.Remotes
+local Logger      = _BW.Logger
 
 local AntiAFK = {
   enabled = false,

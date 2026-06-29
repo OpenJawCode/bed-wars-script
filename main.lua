@@ -15,15 +15,34 @@
 local Players         = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
+-- ─── Package registry ───────────────────────────────────────────────────────
+-- CRITICAL: modules loaded via loadstring have no `script` instance, so they
+-- can't use `require(script.Parent...)`. Instead, we register every module
+-- in a global table (getgenv()._BW or _G._BW) that modules read from.
+-- This is the dependency injection layer.
+if getgenv then
+  getgenv()._BW = {}
+else
+  _G._BW = {}
+end
+
+local function setPkg(name, module)
+  if getgenv then
+    getgenv()._BW[name] = module
+  else
+    _G._BW[name] = module
+  end
+  return module
+end
+
 -- ─── Resolve local paths ────────────────────────────────────────────────────
--- When loaded via loadstring, `script` is nil. We use a small bootstrap to
--- fetch each module from the GitHub raw URL. For local execution (in a
--- project tree), we use relative requires.
+-- When loaded via loadstring, `script` is nil. We fetch each module from the
+-- GitHub raw URL, execute it, and register it in the package table.
 
 local SOURCE_BASE = "https://raw.githubusercontent.com/OpenJawCode/bed-wars-script/main/src"
 
--- Generic loader: fetches a module from the repo and returns it.
-local function loadModule(path)
+-- Generic loader: fetches a module, executes it, registers it in _BW, returns it.
+local function loadModule(name, path)
   local url = SOURCE_BASE .. "/" .. path
   local ok, source = pcall(function()
     return game:HttpGet(url, true)
@@ -37,40 +56,43 @@ local function loadModule(path)
     warn("[bw-script] Parse error in " .. path .. ": " .. tostring(err))
     return nil
   end
-  return fn()
+  local mod = fn()
+  if mod then setPkg(name, mod) end
+  return mod
 end
 
 -- ─── Load order (dependencies first) ────────────────────────────────────────
-local Logger      = loadModule("util/logger.lua")
-local Theme       = loadModule("ui/theme.lua")
-local Tween       = loadModule("util/tween.lua")
-local Dragger     = loadModule("util/dragger.lua")
-local Input       = loadModule("util/input.lua")
-local Projection  = loadModule("util/projection.lua")
-local Anim        = loadModule("ui/animations.lua")
-local Icons       = loadModule("ui/icons.lua")
-local Library     = loadModule("ui/library.lua")
-local Config      = loadModule("config.lua")
-local PlaceId     = loadModule("game/placeid.lua")
-local Services    = loadModule("game/services.lua")
-local Remotes     = loadModule("game/remotes.lua")
-local GameWksp    = loadModule("game/workspace.lua")
+-- Each loadModule(NAME, path) registers the module as _BW.NAME for later lookups.
+local Logger      = loadModule("Logger",     "util/logger.lua")
+local Theme       = loadModule("Theme",      "ui/theme.lua")
+local Tween       = loadModule("Tween",      "util/tween.lua")
+local Dragger     = loadModule("Dragger",    "util/dragger.lua")
+local Input       = loadModule("Input",      "util/input.lua")
+local Projection  = loadModule("Projection", "util/projection.lua")
+local Anim        = loadModule("Anim",       "ui/animations.lua")
+local Icons       = loadModule("Icons",      "ui/icons.lua")
+local Library     = loadModule("Library",    "ui/library.lua")
+local Config      = loadModule("Config",     "config.lua")
+local PlaceId     = loadModule("PlaceId",    "game/placeid.lua")
+local Services    = loadModule("Services",   "game/services.lua")
+local Remotes     = loadModule("Remotes",    "game/remotes.lua")
+local GameWksp    = loadModule("GameWksp",   "game/workspace.lua")
 
 -- Features
-local Killaura    = loadModule("features/killaura.lua")
-local Reach       = loadModule("features/reach.lua")
-local Aimbot      = loadModule("features/aimbot.lua")
-local Fly         = loadModule("features/fly.lua")
-local Speed       = loadModule("features/speed.lua")
-local Noclip      = loadModule("features/noclip.lua")
-local Magnet      = loadModule("features/magnet.lua")
-local Generator   = loadModule("features/generator.lua")
-local BedAura     = loadModule("features/bedaura.lua")
-local Shop        = loadModule("features/shop.lua")
-local AntiAFK     = loadModule("features/antiafk.lua")
-local AutoRejoin  = loadModule("features/autorejoin.lua")
-local Spy         = loadModule("features/spy.lua")
-local ESP         = loadModule("features/esp.lua")
+local Killaura    = loadModule("Killaura",   "features/killaura.lua")
+local Reach       = loadModule("Reach",      "features/reach.lua")
+local Aimbot      = loadModule("Aimbot",     "features/aimbot.lua")
+local Fly         = loadModule("Fly",        "features/fly.lua")
+local Speed       = loadModule("Speed",      "features/speed.lua")
+local Noclip      = loadModule("Noclip",     "features/noclip.lua")
+local Magnet      = loadModule("Magnet",     "features/magnet.lua")
+local Generator   = loadModule("Generator",  "features/generator.lua")
+local BedAura     = loadModule("BedAura",    "features/bedaura.lua")
+local Shop        = loadModule("Shop",       "features/shop.lua")
+local AntiAFK     = loadModule("AntiAFK",    "features/antiafk.lua")
+local AutoRejoin  = loadModule("AutoRejoin", "features/autorejoin.lua")
+local Spy         = loadModule("Spy",        "features/spy.lua")
+local ESP         = loadModule("ESP",        "features/esp.lua")
 
 -- ─── Boot sequence ──────────────────────────────────────────────────────────
 local function boot()
@@ -274,6 +296,24 @@ local function boot()
   -- ─── Misc tab ────────────────────────────────────────────────────────
   local miscTab = Window:CreateTab("Misc", Icons.Misc)
   local miscSec = miscTab:CreateSection("Quality of life")
+
+  -- PANIC BUTTON — big, red, always-visible on touch devices.
+  -- Disables every feature instantly. Also wired to RightCtrl on desktop.
+  miscSec:CreateButton({
+    Name = "⚠ PANIC — disable everything",
+    Callback = function()
+      Killaura.setEnabled(false)
+      Aimbot.setEnabled(false)
+      Fly.setEnabled(false)
+      Speed.setEnabled(false)
+      Noclip.setEnabled(false)
+      Magnet.setEnabled(false)
+      Generator.setEnabled(false)
+      BedAura.setEnabled(false)
+      Shop.setEnabled(false)
+      Library:Notify({ Title = "PANIC", Content = "All features disabled.", Duration = 3 })
+    end,
+  })
 
   miscSec:CreateToggle({
     Name = "Anti-AFK",

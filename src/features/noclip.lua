@@ -3,9 +3,11 @@
 -- Pairs with Fly (which also nocliips), but Noclip standalone keeps walking
 -- physics on (so you can walk through walls but still fall with gravity).
 
+
+local _BW = (getgenv and getgenv()._BW) or _G._BW
 local RunService = game:GetService("RunService")
-local Services   = require(script.Parent.Parent.services)
-local Logger     = require(script.Parent.Parent.util.logger)
+local Services   = _BW.Services
+local Logger     = _BW.Logger
 
 local Noclip = {
   enabled = false,

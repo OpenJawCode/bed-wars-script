@@ -13,8 +13,10 @@
 -- This file is version-fragile — when Easy.gg updates Bedwars, controller paths
 -- may shift. The Spy feature (features/spy.lua) helps discover new remotes live.
 
-local Services = require(script.Parent.services)
-local Logger   = require(script.Parent.Parent.util.logger)
+
+local _BW = (getgenv and getgenv()._BW) or _G._BW
+local Services = _BW.Services
+local Logger   = _BW.Logger
 
 local Remotes = {}
 

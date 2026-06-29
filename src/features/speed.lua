@@ -3,9 +3,11 @@
 -- WHY each frame: Bedwars may reset WalkSpeed on various events (kit abilities,
 -- slowdowns, etc.). Setting it every Heartbeat keeps it sticky.
 
+
+local _BW = (getgenv and getgenv()._BW) or _G._BW
 local RunService = game:GetService("RunService")
-local Services   = require(script.Parent.Parent.services)
-local Logger     = require(script.Parent.Parent.util.logger)
+local Services   = _BW.Services
+local Logger     = _BW.Logger
 
 local Speed = {
   enabled = false,

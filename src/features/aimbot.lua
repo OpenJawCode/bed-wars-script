@@ -6,11 +6,13 @@
 --   - FOV gate: angle between camera look and target < maxAngle/2
 --   - Only active when a sword is held
 
+
+local _BW = (getgenv and getgenv()._BW) or _G._BW
 local RunService = game:GetService("RunService")
-local Services   = require(script.Parent.Parent.services)
-local GameWksp   = require(script.Parent.Parent.game.workspace)
-local Logger     = require(script.Parent.Parent.util.logger)
-local PlaceId    = require(script.Parent.Parent.game.placeid)
+local Services   = _BW.Services
+local GameWksp   = _BW.GameWksp
+local Logger     = _BW.Logger
+local PlaceId    = _BW.PlaceId
 
 local Aimbot = {
   enabled     = false,

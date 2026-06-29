@@ -49,18 +49,29 @@ function Input.onTap(guiObject, callback)
   end
 end
 
--- Haptic feedback (vibration) — silently no-ops on desktop.
+-- Haptic feedback (vibration) — silently no-ops if no vibration API available.
+-- On mobile executors: tries executor-specific `vibrate(ms)` first, then falls
+-- back to Gamepad motor (only works if a gamepad is connected).
 -- strength: 0..1, duration: seconds (capped to 1s).
 function Input.haptic(strength, duration)
-  if not UserInputService.TouchEnabled then return end
-  if not UserInputService.VibrationEnabled then return end
+  strength = math.clamp(strength or 0.3, 0, 1)
+  duration = math.min(duration or 0.1, 1)
+
+  -- 1. Try executor-specific vibrate() function (some executors expose this)
+  if vibrate then
+    pcall(function() vibrate(duration * 1000) end)
+    return
+  end
+
+  -- 2. Fall back to gamepad motor (only works with a connected gamepad)
+  if not UserInputService.GamepadEnabled then return end
   pcall(function()
     UserInputService:SetMotorVibration(
       Enum.UserInputType.Gamepad1,
       Enum.VibrationMotor.Small,
-      math.clamp(strength, 0, 1)
+      strength
     )
-    task.delay(math.min(duration or 0.1, 1), function()
+    task.delay(duration, function()
       pcall(function()
         UserInputService:SetMotorVibration(
           Enum.UserInputType.Gamepad1,

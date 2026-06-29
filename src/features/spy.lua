@@ -8,8 +8,10 @@
 --
 -- Requires an executor with hookmetamethod (Delta + Codex both support it).
 
-local Services  = require(script.Parent.Parent.services)
-local Logger    = require(script.Parent.Parent.util.logger)
+
+local _BW = (getgenv and getgenv()._BW) or _G._BW
+local Services  = _BW.Services
+local Logger    = _BW.Logger
 
 local Spy = {
   enabled   = false,

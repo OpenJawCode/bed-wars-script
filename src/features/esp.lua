@@ -12,13 +12,15 @@
 --
 -- Mobile throttle: 30Hz on touch devices to save battery. 60Hz on desktop.
 
+
+local _BW = (getgenv and getgenv()._BW) or _G._BW
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local Services  = require(script.Parent.Parent.services)
-local GameWksp  = require(script.Parent.Parent.game.workspace)
-local Theme     = require(script.Parent.ui.theme)
-local Logger    = require(script.Parent.Parent.util.logger)
-local PlaceId   = require(script.Parent.Parent.game.placeid)
+local Services  = _BW.Services
+local GameWksp  = _BW.GameWksp
+local Theme     = _BW.Theme
+local Logger    = _BW.Logger
+local PlaceId   = _BW.PlaceId
 
 local ESP = {
   enabled     = false,

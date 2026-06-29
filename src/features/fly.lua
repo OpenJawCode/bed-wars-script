@@ -8,9 +8,11 @@
 -- Mobile: we use on-screen joystick buttons (added to the UI) — but for v1
 -- we use the camera look direction + a single "ascend" toggle.
 
+
+local _BW = (getgenv and getgenv()._BW) or _G._BW
 local RunService = game:GetService("RunService")
-local Services   = require(script.Parent.Parent.services)
-local Logger     = require(script.Parent.Parent.util.logger)
+local Services   = _BW.Services
+local Logger     = _BW.Logger
 
 local Fly = {
   enabled  = false,

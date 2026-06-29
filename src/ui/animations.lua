@@ -3,9 +3,11 @@
 -- WHY: every component (button, toggle, slider) needs consistent press/hover/
 -- reveal feedback. Web dev mental model: this is our framer-motion variants.
 
+
+local _BW = (getgenv and getgenv()._BW) or _G._BW
 local TweenService = game:GetService("TweenService")
-local Theme = require(script.Parent.theme)
-local Tween = require(script.Parent.Parent.util.tween)
+local Theme = _BW.Theme
+local Tween = _BW.Tween
 
 local Anim = {}
 

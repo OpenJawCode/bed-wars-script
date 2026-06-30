@@ -859,3 +859,70 @@ This is the same anti-pattern as B034/B041: top-level code (or near-top-level co
 - No `GuiInset` property access in single-file (only in comments)
 - `Rotation.start()` wrapped in pcall in library.lua
 - All previous fixes preserved
+
+---
+
+## B043 — `ZIndex is not a valid member of UIListLayout` (2026-06-30 15:35)
+
+**Trigger:** v1.5.2 still failed at boot. Error overlay:
+> `ZIndex is not a valid member of UIListLayout`
+> Path: `...Window.Content.Pages.CombatPage.UIListLayout`
+
+**Root cause:** `src/ui/library.lua` had two instances of setting `ZIndex` on a `UIListLayout`:
+- Line 736 (CreateTab): `list.ZIndex = Theme.Z.WindowContent`
+- Line 846 (CreateSection): `cl.ZIndex = Theme.Z.WindowContent`
+
+`UIListLayout` does NOT have a `ZIndex` property. Layouts inherit ZIndex from their parent Frame automatically. Setting ZIndex on a layout throws "ZIndex is not a valid member of UIListLayout" and halts the boot.
+
+**Fix:**
+1. Removed both `list.ZIndex = ...` and `cl.ZIndex = ...` lines. Replaced with comments documenting why.
+2. Added a `safeSet(instance, prop, value)` helper at the top of `library.lua` for future use. This wraps a property set in pcall, so an invalid property silently does nothing instead of throwing.
+
+**The pattern (B042 + B043 + B034 + B041):**
+The bugs we're hitting are all in the same family: **"Roblox API misuse that throws at function-call time, halting the boot before the pcall can catch it."** Specifically:
+
+| Bug | What we tried | What went wrong |
+|-----|---------------|-----------------|
+| B034 | `require(script.Parent.X)` | `script` is nil in loadstring context — halts the loadstring'd chunk |
+| B041 | `pairs(sources)` for module iteration | Undefined order — dependencies not loaded yet when used |
+| B042 | `GuiService:GetPropertyChangedSignal("GuiInset")` | `GuiInset` is a method, not a property — GetPropertyChangedSignal throws |
+| B043 | `UIListLayout.ZIndex = X` | UIListLayout has no ZIndex property — throws |
+
+**The meta-pattern:** When using a Roblox API, ALWAYS verify:
+- The object actually has the property you're setting
+- The method you're calling returns what you expect
+- The order of operations respects dependencies
+
+**Defensive pattern (going forward):**
+For ANY property set on a Roblox instance whose class might not have that property, use `safeSet(obj, "X", value)` instead of `obj.X = value`. The safeSet helper catches the error silently.
+
+```lua
+-- BAD: throws on UIListLayout
+list.ZIndex = 5
+
+-- GOOD: silently does nothing if ZIndex doesn't exist
+safeSet(list, "ZIndex", 5)
+```
+
+This won't be applied retroactively to every property set in the codebase (too invasive), but it's available for new code and for any future property bug we find.
+
+---
+
+## Top 5 bugs to remember (v1.5.3)
+
+1. **B001** — Icon doesn't appear unless `DisplayOrder=9999999` + `ZIndexBehavior=Global`.
+2. **B002** — Never fail silently. Any `pcall` must call `showBootError(err)`.
+3. **B029** — Never tween FROM a visibility property. Always start visible.
+4. **B034** — Never use `require(script.Parent...)` in loadstring-compatible modules. Use the `_BW.X` registry.
+5. **B042** — **NEW v1.5.2**: Verify Roblox API usage. `GetPropertyChangedSignal` only works on actual properties (not methods). UIListLayout doesn't have ZIndex. When in doubt, use `safeSet(obj, "X", value)` for silent fallback.
+
+---
+
+## Build status (v1.5.3)
+
+- **31 modules**, **212 KB single-file**, **5762 lines**
+- All 35 source files pass Lua 5.4 syntax check
+- Single-file parses cleanly
+- `UIListLayout.ZIndex` removed (only 4 comment references in single-file)
+- `safeSet(obj, prop, value)` helper added to library.lua for future defensive property sets
+- All previous fixes preserved

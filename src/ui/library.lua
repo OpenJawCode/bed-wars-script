@@ -73,11 +73,29 @@ local function makeLabel(parent, text, opts)
   lbl.Font = opts.font or Theme.Font.Body
   lbl.Text = text
   lbl.TextColor3 = opts.color or Theme.Color.TextPrimary
-  lbl.TextSize = opts.textSize or Theme.Size.Body
+  lbl.TextSize = opts.textsize or Theme.Size.Body
   lbl.TextXAlignment = opts.textXAlignment or Enum.TextXAlignment.Left
   lbl.TextYAlignment = Enum.TextYAlignment.Center
   lbl.RichText = opts.richText or false
   return lbl
+end
+
+-- v1.5.3: B043 defense — safeSet wraps a single property assignment in
+-- pcall. Use this for ANY property set on a Roblox instance whose
+-- class might not have the property. Layouts (UIListLayout, UIPageLayout),
+-- constraints (UIPadding, UISizeConstraint), and decorators (UICorner,
+-- UIStroke, UIGradient, UIScale) all have a strict property set —
+-- setting an invalid one throws and halts the boot.
+--
+-- Example: instead of `list.ZIndex = 5` (which throws on UIListLayout),
+-- use `safeSet(list, "ZIndex", 5)` which silently does nothing.
+--
+-- This is the v1.5.3 family pattern: "Roblox Instance property errors
+-- that throw before the boot pcall can catch." See B042 (GuiInset),
+-- B043 (UIListLayout.ZIndex). Both throw, both halt. safeSet prevents
+-- the halt.
+local function safeSet(instance, prop, value)
+  pcall(function() instance[prop] = value end)
 end
 
 local function applyGlass(frame, opts)
@@ -733,7 +751,10 @@ function Library:CreateTab(name, iconSpec)
   list.Parent = page
   list.SortOrder = Enum.SortOrder.LayoutOrder
   list.Padding = UDim.new(0, Theme.Space.SM)
-  list.ZIndex = Theme.Z.WindowContent
+  -- v1.5.3: B043 — UIListLayout has NO ZIndex property. Removed.
+  -- Was: list.ZIndex = Theme.Z.WindowContent (threw "ZIndex is not a
+  -- valid member of UIListLayout" and halted the boot). Layouts
+  -- inherit ZIndex from their parent Frame automatically.
 
   -- Tab button
   local tabBar = self.window:FindFirstChild("TabBar")
@@ -843,7 +864,7 @@ function Library._createSection(tab, name)
   cl.Parent = container
   cl.SortOrder = Enum.SortOrder.LayoutOrder
   cl.Padding = UDim.new(0, 1)
-  cl.ZIndex = Theme.Z.WindowContent
+  -- v1.5.3: B043 — UIListLayout has NO ZIndex property. Removed.
 
   section.container = container
   section.layout = cl

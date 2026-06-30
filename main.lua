@@ -117,12 +117,30 @@ local function boot()
     Accent = Theme.Color.Accent,
   })
 
+  -- Panic callback (called by status bar ⚠ PANIC button + RightCtrl)
+  Window.onPanic = function()
+    Killaura.setEnabled(false)
+    Reach.setEnabled(false)
+    Aimbot.setEnabled(false)
+    Fly.setEnabled(false)
+    Speed.setEnabled(false)
+    Noclip.setEnabled(false)
+    Magnet.setEnabled(false)
+    Generator.setEnabled(false)
+    BedAura.setEnabled(false)
+    Shop.setEnabled(false)
+    ESP.setEnabled(false)
+    Library:Notify({ Title = "⚠ PANIC", Content = "All features disabled.", Duration = 3 })
+  end
+  Input.onKeyDown("RightControl", Window.onPanic)
+
   -- ─── Combat tab ──────────────────────────────────────────────────────
-  local combatTab = Window:CreateTab("Combat", Icons.Combat)
+  local combatTab = Window:CreateTab("Combat", Icons.Unicode.Combat)
   local combatSec = combatTab:CreateSection("Offense")
 
   combatSec:CreateToggle({
     Name = "Killaura",
+    Icon = "⚔",
     CurrentValue = Config.get("killaura_enabled"),
     Callback = function(v) Killaura.setEnabled(v) end,
   })
@@ -142,6 +160,7 @@ local function boot()
   })
   combatSec:CreateToggle({
     Name = "Reach Extension",
+    Icon = "↔",
     CurrentValue = Config.get("reach_enabled"),
     Callback = function(v) Reach.setEnabled(v) end,
   })
@@ -154,6 +173,7 @@ local function boot()
   })
   combatSec:CreateToggle({
     Name = "Aimbot (smooth)",
+    Icon = "◎",
     CurrentValue = Config.get("aimbot_enabled"),
     Callback = function(v) Aimbot.setEnabled(v) end,
   })
@@ -165,11 +185,12 @@ local function boot()
   })
 
   -- ─── Visuals tab ─────────────────────────────────────────────────────
-  local visTab = Window:CreateTab("Visuals", Icons.Visuals)
+  local visTab = Window:CreateTab("Visuals", Icons.Unicode.Visuals)
   local visSec = visTab:CreateSection("ESP")
 
   visSec:CreateToggle({
     Name = "Player ESP",
+    Icon = "◉",
     CurrentValue = Config.get("esp_players"),
     Callback = function(v)
       ESP.setShowPlayers(v)
@@ -178,6 +199,7 @@ local function boot()
   })
   visSec:CreateToggle({
     Name = "Bed ESP",
+    Icon = "▤",
     CurrentValue = Config.get("esp_beds"),
     Callback = function(v)
       ESP.setShowBeds(v)
@@ -186,6 +208,7 @@ local function boot()
   })
   visSec:CreateToggle({
     Name = "Generator / Item ESP",
+    Icon = "◈",
     CurrentValue = Config.get("esp_generators"),
     Callback = function(v)
       ESP.setShowGens(v)
@@ -195,6 +218,7 @@ local function boot()
   })
   visSec:CreateToggle({
     Name = "Tracers",
+    Icon = "➤",
     CurrentValue = Config.get("esp_tracers"),
     Callback = function(v) ESP.setShowTracers(v) end,
   })
@@ -207,11 +231,12 @@ local function boot()
   })
 
   -- ─── Movement tab ────────────────────────────────────────────────────
-  local moveTab = Window:CreateTab("Move", Icons.Movement)
+  local moveTab = Window:CreateTab("Move", Icons.Unicode.Move)
   local moveSec = moveTab:CreateSection("Movement")
 
   moveSec:CreateToggle({
     Name = "Fly (noclip + velocity)",
+    Icon = "➤",
     CurrentValue = Config.get("fly_enabled"),
     Callback = function(v) Fly.setEnabled(v) end,
   })
@@ -224,6 +249,7 @@ local function boot()
   })
   moveSec:CreateToggle({
     Name = "Speed",
+    Icon = "»",
     CurrentValue = Config.get("speed_enabled"),
     Callback = function(v) Speed.setEnabled(v) end,
   })
@@ -235,16 +261,18 @@ local function boot()
   })
   moveSec:CreateToggle({
     Name = "Noclip",
+    Icon = "▣",
     CurrentValue = Config.get("noclip_enabled"),
     Callback = function(v) Noclip.setEnabled(v) end,
   })
 
   -- ─── World tab ───────────────────────────────────────────────────────
-  local worldTab = Window:CreateTab("World", Icons.World)
+  local worldTab = Window:CreateTab("World", Icons.Unicode.World)
   local worldSec = worldTab:CreateSection("Resources")
 
   worldSec:CreateToggle({
     Name = "Magnet (whole map)",
+    Icon = "✦",
     CurrentValue = Config.get("magnet_enabled"),
     Callback = function(v) Magnet.setEnabled(v) end,
   })
@@ -257,6 +285,7 @@ local function boot()
   })
   worldSec:CreateToggle({
     Name = "Generator Auto-Collect",
+    Icon = "◈",
     CurrentValue = Config.get("generator_enabled"),
     Callback = function(v) Generator.setEnabled(v) end,
   })
@@ -269,6 +298,7 @@ local function boot()
   })
   worldSec:CreateToggle({
     Name = "Bed Aura (auto-break)",
+    Icon = "▤",
     CurrentValue = Config.get("bedaura_enabled"),
     Callback = function(v) BedAura.setEnabled(v) end,
   })
@@ -283,6 +313,7 @@ local function boot()
   local shopSec = worldTab:CreateSection("Shop")
   shopSec:CreateToggle({
     Name = "Auto-Buy",
+    Icon = "$",
     CurrentValue = Config.get("shop_enabled"),
     Callback = function(v) Shop.setEnabled(v) end,
   })
@@ -294,13 +325,14 @@ local function boot()
   })
 
   -- ─── Misc tab ────────────────────────────────────────────────────────
-  local miscTab = Window:CreateTab("Misc", Icons.Misc)
+  local miscTab = Window:CreateTab("Misc", Icons.Unicode.Misc)
   local miscSec = miscTab:CreateSection("Quality of life")
 
   -- PANIC BUTTON — big, red, always-visible on touch devices.
   -- Disables every feature instantly. Also wired to RightCtrl on desktop.
   miscSec:CreateButton({
     Name = "⚠ PANIC — disable everything",
+    Icon = "⚠",
     Callback = function()
       Killaura.setEnabled(false)
       Aimbot.setEnabled(false)
@@ -317,11 +349,13 @@ local function boot()
 
   miscSec:CreateToggle({
     Name = "Anti-AFK",
+    Icon = "◐",
     CurrentValue = Config.get("antiafk_enabled"),
     Callback = function(v) AntiAFK.setEnabled(v) end,
   })
   miscSec:CreateToggle({
     Name = "Auto-Rejoin",
+    Icon = "↻",
     CurrentValue = Config.get("autorejoin_enabled"),
     Callback = function(v) AutoRejoin.setEnabled(v) end,
   })
@@ -329,6 +363,7 @@ local function boot()
   local devSec = miscTab:CreateSection("Developer")
   devSec:CreateToggle({
     Name = "Remote Spy (log FireServer/InvokeServer)",
+    Icon = "◬",
     CurrentValue = Config.get("spy_enabled"),
     Callback = function(v)
       if v then Spy.enable() else Spy.disable() end
@@ -336,6 +371,7 @@ local function boot()
   })
   devSec:CreateButton({
     Name = "Print Remote Log to Console",
+    Icon = "◬",
     Callback = function()
       local recent = Spy.getRecent(50)
       print("=== Spy Log (last 50) ===")
@@ -346,6 +382,7 @@ local function boot()
   })
   devSec:CreateButton({
     Name = "Re-extract Remotes",
+    Icon = "↻",
     Callback = function()
       task.spawn(function()
         Remotes.extractAll()
@@ -355,22 +392,11 @@ local function boot()
   })
   devSec:CreateButton({
     Name = "Save Config",
+    Icon = "✦",
     Callback = function() Config.save() end,
   })
 
-  -- ─── Kill switch (panic button) ──────────────────────────────────────
-  Input.onKeyDown("RightControl", function()
-    Killaura.setEnabled(false)
-    Aimbot.setEnabled(false)
-    Fly.setEnabled(false)
-    Speed.setEnabled(false)
-    Noclip.setEnabled(false)
-    Magnet.setEnabled(false)
-    Generator.setEnabled(false)
-    BedAura.setEnabled(false)
-    Shop.setEnabled(false)
-    Library:Notify({ Title = "Panic", Content = "All features disabled", Duration = 3 })
-  end)
+  -- (panic moved to Window.onPanic + status bar button)
 
   -- ─── Re-wire Fly on character respawn ────────────────────────────────
   Players.LocalPlayer.CharacterAdded:Connect(function()
@@ -381,7 +407,7 @@ local function boot()
   -- ─── Boot notification ───────────────────────────────────────────────
   Library:Notify({
     Title = "Bedwars Script",
-    Content = "Loaded. Tap the floating button to open the menu.\nRightCtrl = panic.",
+    Content = "Loaded. Tap ⚡ to open. Use ⚠ PANIC to disable all.",
     Duration = 6,
   })
 

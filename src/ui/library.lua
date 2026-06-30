@@ -1,30 +1,27 @@
 -- src/ui/library.lua
 -- Custom UI library — dark luxe glassmorphic, mobile-first, zero dependencies.
--- Inspired by Rayfield's API surface but built entirely with Instance.new()
--- so we have no rbxassetid:// dependency (Rayfield loads from a hosted asset).
+-- v1.1 rewrite: full-width window, top tabs, search bar, status bar, fixed FAB.
 --
--- API (mirrors Rayfield so it's familiar):
+-- API (mirrors Rayfield):
 --   local Window = Library:CreateWindow({ Name=..., Accent=... })
---   local Tab    = Window:CreateTab("Combat", Icons.Combat)
+--   local Tab    = Window:CreateTab("Combat")
 --   local Section = Tab:CreateSection("Offense")
---   local Toggle = Section:CreateToggle({ Name="Killaura", CurrentValue=false, Callback=... })
---   local Slider = Section:CreateSlider({ Name="Range", Range={5,30}, CurrentValue=18, Callback=... })
---   local Button = Section:CreateButton({ Name="Refresh", Callback=... })
---   local Keybind= Section:CreateKeybind({ Name="Toggle UI", CurrentKeybind="RightShift", Callback=... })
---   Library:Notify({ Title="...", Content="...", Duration=4 })
---
--- Mobile-first: bottom tabs, 56pt touch targets, snap-to-edge drag, haptic on tap.
-
+--   local Toggle = Section:CreateToggle({ Name=..., CurrentValue=false, Callback=... })
+--   local Slider = Section:CreateSlider({ Name=..., Range={5,30}, CurrentValue=18, Callback=... })
+--   local Button = Section:CreateButton({ Name=..., Callback=... })
+--   local Keybind= Section:CreateKeybind({ Name=..., CurrentKeybind=..., Callback=... })
+--   Library:Notify({ Title=..., Content=..., Duration=4 })
+--   Window:SetVisible(true/false)
+--   Window.onPanic = function() end   -- panic callback
 
 local _BW = (getgenv and getgenv()._BW) or _G._BW
 local Players            = game:GetService("Players")
 local UserInputService   = game:GetService("UserInputService")
 local TweenService       = game:GetService("TweenService")
 local RunService         = game:GetService("RunService")
+local Stats              = game:GetService("Stats")
 
 local Theme   = _BW.Theme
-local Tween   = _BW.Tween
-local Dragger = _BW.Dragger
 local Input   = _BW.Input
 local Anim    = _BW.Anim
 local Icons   = _BW.Icons
@@ -33,7 +30,6 @@ local Library = {}
 
 -- ─── Helpers ────────────────────────────────────────────────────────────────
 
--- Decide where to parent our ScreenGui. Try gethui (executor), then CoreGui.
 local function getGuiParent()
   local ok, hui = pcall(function() return gethui() end)
   if ok and hui then return hui end
@@ -42,23 +38,6 @@ local function getGuiParent()
   return Players.LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- Apply a glass effect to a frame: bg color, transparency, stroke, corner.
-local function applyGlass(frame, opts)
-  opts = opts or {}
-  frame.BackgroundColor3 = opts.color or Theme.Color.Surface
-  frame.BackgroundTransparency = opts.transparency or Theme.Alpha.GlassPanel
-  local stroke = Instance.new("UIStroke")
-  stroke.Color = Theme.Color.Border
-  stroke.Transparency = opts.strokeTransparency or Theme.Alpha.Border
-  stroke.Thickness = 1
-  stroke.Parent = frame
-  local corner = Instance.new("UICorner")
-  corner.CornerRadius = UDim.new(0, opts.radius or Theme.Radius.Card)
-  corner.Parent = frame
-  return stroke, corner
-end
-
--- Create a TextLabel with sane defaults.
 local function makeLabel(parent, text, opts)
   opts = opts or {}
   local lbl = Instance.new("TextLabel")
@@ -71,24 +50,37 @@ local function makeLabel(parent, text, opts)
   lbl.Text = text
   lbl.TextColor3 = opts.color or Theme.Color.TextPrimary
   lbl.TextSize = opts.textSize or Theme.Size.Body
-  lbl.TextXAlignment = Enum.TextXAlignment.Left
+  lbl.TextXAlignment = opts.textXAlignment or Enum.TextXAlignment.Left
   lbl.TextYAlignment = Enum.TextYAlignment.Center
   lbl.RichText = opts.richText or false
   return lbl
 end
 
--- ─── Notifications ───────────────────────────────────────────────────────────
--- Top-anchored, stacked via UIListLayout, slide-in + auto-dismiss.
+local function applyGlass(frame, opts)
+  opts = opts or {}
+  frame.BackgroundColor3 = opts.color or Theme.Color.Surface
+  frame.BackgroundTransparency = opts.transparency or Theme.Alpha.GlassPanel
+  local stroke = Instance.new("UIStroke")
+  stroke.Color = opts.borderColor or Theme.Color.Border
+  stroke.Transparency = opts.borderTransparency or Theme.Alpha.Border
+  stroke.Thickness = opts.thickness or 1
+  stroke.Parent = frame
+  local corner = Instance.new("UICorner")
+  corner.CornerRadius = UDim.new(0, opts.radius or Theme.Radius.Card)
+  corner.Parent = frame
+  return stroke, corner
+end
 
+-- ─── Notifications ──────────────────────────────────────────────────────────
 local function createNotificationSystem(screengui)
   local container = Instance.new("Frame")
   container.Name = "Notifications"
   container.Parent = screengui
   container.BackgroundTransparency = 1
-  container.Position = UDim2.new(0.5, 0, 0, Theme.Space.LG)
+  container.Position = UDim2.new(0.5, 0, 0, Theme.Space.LG + Theme.Touch.HeaderHeight)
   container.Size = UDim2.new(0, 320, 1, -Theme.Space.LG * 2)
   container.AnchorPoint = Vector2.new(0.5, 0)
-  container.ZIndex = 100
+  container.ZIndex = Theme.Z.Notifications
 
   local layout = Instance.new("UIListLayout")
   layout.Parent = container
@@ -96,7 +88,6 @@ local function createNotificationSystem(screengui)
   layout.Padding = UDim.new(0, Theme.Space.SM)
   layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
   layout.VerticalAlignment = Enum.VerticalAlignment.Top
-
   return container
 end
 
@@ -111,7 +102,7 @@ function Library:Notify(data)
   notif.Size = UDim2.new(1, 0, 0, 0)
   notif.AnchorPoint = Vector2.new(0.5, 0)
   notif.Position = UDim2.new(0.5, 0, 0, 0)
-  notif.ZIndex = 101
+  notif.ZIndex = Theme.Z.Notifications + 1
   applyGlass(notif, { radius = Theme.Radius.Card })
 
   local title = makeLabel(notif, data.Title or "Notification", {
@@ -129,80 +120,160 @@ function Library:Notify(data)
   content.Size = UDim2.new(1, -Theme.Space.MD * 2, 0, 16)
   content.TextWrapped = true
 
-  -- Slide-in: tween height from 0 to computed.
-  local targetHeight = 60
   TweenService:Create(notif,
-    TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-    { Size = UDim2.new(1, 0, 0, targetHeight), BackgroundTransparency = Theme.Alpha.GlassCard }
+    TweenInfo.new(0.32, Theme.Easing.Open, Enum.EasingDirection.Out),
+    { Size = UDim2.new(1, 0, 0, 60), BackgroundTransparency = Theme.Alpha.GlassCard }
   ):Play()
 
-  -- Auto-dismiss
   local duration = data.Duration or 4
   task.delay(duration, function()
     if not notif.Parent then return end
     TweenService:Create(notif,
-      TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.In),
+      TweenInfo.new(0.30, Theme.Easing.Open, Enum.EasingDirection.In),
       { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0) }
     ):Play()
     for _, child in ipairs(notif:GetChildren()) do
       if child:IsA("TextLabel") then
         TweenService:Create(child,
-          TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.In),
+          TweenInfo.new(0.25, Theme.Easing.Open, Enum.EasingDirection.In),
           { TextTransparency = 1 }
         ):Play()
       end
     end
-    task.wait(0.45)
-    notif:Destroy()
+    task.delay(0.32, function() if notif.Parent then notif:Destroy() end end)
   end)
 end
 
--- ─── Floating Action Button (always-visible toggle) ────────────────────────
--- The user taps this to open/close the menu. Draggable, snaps to edge.
-
-local function createFab(screengui, openMenu)
+-- ─── FAB (Floating Action Button — fixed, no drag) ────────────────────────
+local function createFab(screengui, openMenu, accentColor)
   local fab = Instance.new("TextButton")
   fab.Name = "FAB"
   fab.Parent = screengui
-  fab.BackgroundColor3 = Theme.Color.Accent
-  fab.Size = UDim2.new(0, Theme.Touch.FloatingBtn, 0, Theme.Touch.FloatingBtn)
-  fab.Position = UDim2.new(0, Theme.Space.LG, 1, -Theme.Touch.FloatingBtn - Theme.Space.LG)
-  fab.Text = ""
-  fab.ZIndex = 50
+  fab.BackgroundColor3 = accentColor or Theme.Color.Accent
+  fab.Size = UDim2.fromOffset(Theme.Touch.FABSize, Theme.Touch.FABSize)
+  -- FIXED top-right corner, never moves
+  fab.Position = UDim2.new(1, -Theme.Touch.FABSize - Theme.Touch.FABMargin,
+                          0, Theme.Touch.FABMargin + 12)
+  fab.Text = Icons.FabIcon
+  fab.TextColor3 = Color3.fromRGB(10, 15, 26)
+  fab.Font = Theme.Font.Icon
+  fab.TextSize = 26
+  fab.TextXAlignment = Enum.TextXAlignment.Center
+  fab.TextYAlignment = Enum.TextYAlignment.Center
+  fab.ZIndex = Theme.Z.FAB
   fab.AutoButtonColor = false
-  local corner = Instance.new("UICorner")
-  corner.CornerRadius = UDim.new(0, Theme.Radius.Pill)
-  corner.Parent = fab
-  local stroke = Instance.new("UIStroke")
-  stroke.Color = Theme.Color.AccentGlow
-  stroke.Transparency = 0.4
-  stroke.Thickness = 1.5
-  stroke.Parent = fab
-  local icon = Instance.new("ImageLabel")
-  icon.Parent = fab
-  icon.BackgroundTransparency = 1
-  icon.Size = UDim2.new(0, 24, 0, 24)
-  icon.Position = UDim2.new(0.5, -12, 0.5, -12)
-  icon.Image = "rbxassetid://" .. tostring(Icons.Logo)
-  icon.ImageColor3 = Color3.fromRGB(10, 15, 26)
-  Dragger.enable(fab, { snapToEdge = true, snapPadding = Theme.Space.LG, animate = true })
+  fab.BorderSizePixel = 0
+  local fabCorner = Instance.new("UICorner")
+  fabCorner.CornerRadius = UDim.new(1, 0)
+  fabCorner.Parent = fab
+  local fabStroke = Instance.new("UIStroke")
+  fabStroke.Color = accentColor or Theme.Color.Accent
+  fabStroke.Thickness = 2
+  fabStroke.Transparency = Theme.Alpha.AccentGlowOuter
+  fabStroke.Parent = fab
+  Anim.pulseGlow(fabStroke, Theme.Motion.Glow, accentColor or Theme.Color.Accent)
   Input.onTap(fab, function()
-    Input.haptic(0.3, 0.08)
+    Input.haptic(0.4, 0.08)
     Anim.press(fab)
-    task.delay(0.1, function() Anim.release(fab) end)
+    task.delay(Theme.Motion.Press + 0.02, function() Anim.release(fab) end)
     openMenu()
   end)
   return fab
 end
 
--- ─── Window ──────────────────────────────────────────────────────────────────
+-- ─── Status bar (always visible at bottom) ─────────────────────────
+local function createStatusBar(parent, onPanic, viewportWidth)
+  local bar = Instance.new("Frame")
+  bar.Name = "StatusBar"
+  bar.Parent = parent
+  bar.Size = UDim2.new(1, 0, 0, Theme.Touch.StatusBarHeight)
+  bar.Position = UDim2.new(0, 0, 1, -Theme.Touch.StatusBarHeight)
+  bar.BackgroundColor3 = Theme.Color.SurfaceRaised
+  bar.BackgroundTransparency = Theme.Alpha.GlassCard
+  bar.ZIndex = Theme.Z.WindowContent + 1
+  bar.BorderSizePixel = 0
+  applyGlass(bar, { radius = 0 })
 
+  local topStroke = Instance.new("UIStroke")
+  topStroke.Color = Theme.Color.Border
+  topStroke.Transparency = Theme.Alpha.Border
+  topStroke.Thickness = 1
+  topStroke.Parent = bar
+
+  local panicWidth = 96
+  local cellW = (viewportWidth - panicWidth - 16) / 3
+  local function makeCell(idx, label, color)
+    local cell = Instance.new("Frame")
+    cell.Parent = bar
+    cell.BackgroundTransparency = 1
+    cell.Size = UDim2.new(0, cellW, 1, 0)
+    cell.Position = UDim2.new(0, idx * cellW, 0, 0)
+    cell.BorderSizePixel = 0
+
+    local dot = Instance.new("Frame")
+    dot.Parent = cell
+    dot.Size = UDim2.fromOffset(6, 6)
+    dot.Position = UDim2.new(0, Theme.Space.MD, 0.5, -3)
+    dot.BackgroundColor3 = color
+    dot.BorderSizePixel = 0
+    local dotCorner = Instance.new("UICorner")
+    dotCorner.CornerRadius = UDim.new(1, 0)
+    dotCorner.Parent = dot
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Parent = cell
+    lbl.BackgroundTransparency = 1
+    lbl.Size = UDim2.new(1, -Theme.Space.MD * 2 - 12, 1, 0)
+    lbl.Position = UDim2.new(0, Theme.Space.MD + 12, 0, 0)
+    lbl.Font = Theme.Font.Mono
+    lbl.TextSize = Theme.Size.Caption
+    lbl.Text = label
+    lbl.TextColor3 = color
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.TextYAlignment = Enum.TextYAlignment.Center
+    return lbl
+  end
+
+  local fpsLabel    = makeCell(0, "FPS —",  Theme.Color.Accent)
+  local pingLabel   = makeCell(1, "Ping —", Theme.Color.Info)
+  local activeLabel = makeCell(2, "0/14 ON", Theme.Color.Gold)
+
+  -- Panic button (44pt tall, Apple HIG touch target)
+  local panicBtn = Instance.new("TextButton")
+  panicBtn.Parent = bar
+  panicBtn.Size = UDim2.new(0, panicWidth, 0, 44)
+  panicBtn.Position = UDim2.new(1, -panicWidth - 8, 0.5, -22)
+  panicBtn.BackgroundColor3 = Theme.Color.Danger
+  panicBtn.BackgroundTransparency = 0.2
+  panicBtn.Text = "⚠ PANIC"
+  panicBtn.TextColor3 = Theme.Color.TextPrimary
+  panicBtn.Font = Theme.Font.Heading
+  panicBtn.TextSize = 11
+  panicBtn.ZIndex = Theme.Z.WindowContent + 2
+  panicBtn.AutoButtonColor = false
+  panicBtn.BorderSizePixel = 0
+  local panicCorner = Instance.new("UICorner")
+  panicCorner.CornerRadius = UDim.new(0, Theme.Radius.Input)
+  panicCorner.Parent = panicBtn
+  Input.onTap(panicBtn, function()
+    Input.haptic(0.6, 0.15)
+    Anim.press(panicBtn)
+    task.delay(0.1, function() Anim.release(panicBtn) end)
+    if onPanic then onPanic() end
+  end)
+
+  return bar, fpsLabel, pingLabel, activeLabel
+end
+
+-- ─── Window ──────────────────────────────────────────────────────────────────
 function Library:CreateWindow(settings)
   settings = settings or {}
   local self = setmetatable({}, { __index = Library })
   self.tabs = {}
   self.open = false
-  self.theme = Theme
+  self.activeCount = 0
+  self.onPanic = settings.onPanic
+  self._viewportSize = Vector2.new(393, 852)
 
   -- ScreenGui
   local sg = Instance.new("ScreenGui")
@@ -213,33 +284,51 @@ function Library:CreateWindow(settings)
   sg.Parent = getGuiParent()
   self.screengui = sg
 
-  -- Notifications container
-  self._notifContainer = createNotificationSystem(sg)
+  local function getViewportSize()
+    local camera = workspace.CurrentCamera
+    if camera then
+      self._viewportSize = camera.ViewportSize
+    end
+    return self._viewportSize
+  end
 
-  -- Main window (hidden until FAB tapped)
+  -- ─── Backdrop ───────────────────────────────────────────────────────
+  local backdrop = Instance.new("Frame")
+  backdrop.Name = "Backdrop"
+  backdrop.Parent = sg
+  backdrop.Size = UDim2.new(1, 0, 1, 0)
+  backdrop.BackgroundColor3 = Theme.Color.Backdrop
+  backdrop.BackgroundTransparency = 1
+  backdrop.ZIndex = Theme.Z.Backdrop
+  backdrop.BorderSizePixel = 0
+  backdrop.Visible = false
+  self.backdrop = backdrop
+
+  -- ─── Window frame (full-width, 85% tall) ──────────────────────────
   local win = Instance.new("Frame")
   win.Name = "Window"
   win.Parent = sg
   win.BackgroundColor3 = Theme.Color.Surface
   win.BackgroundTransparency = Theme.Alpha.GlassPanel
-  win.Size = UDim2.new(0, 380, 0, 480)
-  win.Position = UDim2.new(0.5, -190, 0.5, -240)
+  win.AnchorPoint = Vector2.new(0, 0)
+  win.ClipsDescendants = true
+  win.ZIndex = Theme.Z.Window
+  win.BorderSizePixel = 0
   win.Visible = false
-  win.ZIndex = 10
-  win.ClipsDescendants = true  -- CRITICAL: clips header/tabs during open/close animation
-  applyGlass(win, { radius = Theme.Radius.Card, transparency = Theme.Alpha.GlassPanel })
   self.window = win
+  applyGlass(win, { radius = Theme.Window.CornerRadius, transparency = Theme.Alpha.GlassPanel })
 
-  -- Header
+  -- ─── Header (logo + title + search + close) ───────────────────────
   local header = Instance.new("Frame")
   header.Name = "Header"
   header.Parent = win
+  header.Size = UDim2.new(1, 0, 0, Theme.Touch.HeaderHeight)
+  header.Position = UDim2.new(0, 0, 0, 0)
   header.BackgroundColor3 = Theme.Color.SurfaceRaised
   header.BackgroundTransparency = Theme.Alpha.GlassCard
-  header.Size = UDim2.new(1, 0, 0, 56)
-  header.Position = UDim2.new(0, 0, 0, 0)
+  header.ZIndex = Theme.Z.WindowContent
+  header.BorderSizePixel = 0
   applyGlass(header, { radius = 0 })
-  self.header = header
 
   local headerStroke = Instance.new("UIStroke")
   headerStroke.Color = Theme.Color.Border
@@ -247,121 +336,240 @@ function Library:CreateWindow(settings)
   headerStroke.Thickness = 1
   headerStroke.Parent = header
 
-  local title = makeLabel(header, settings.Name or "Bedwars Script", {
-    position = UDim2.new(0, Theme.Space.LG, 0, 0),
-    font = Theme.Font.Heading, textSize = Theme.Size.Heading,
+  local logoBtn = Instance.new("TextButton")
+  logoBtn.Parent = header
+  logoBtn.BackgroundTransparency = 1
+  logoBtn.Size = UDim2.new(0, Theme.Touch.HeaderHeight, 1, 0)
+  logoBtn.Position = UDim2.new(0, 0, 0, 0)
+  logoBtn.Text = Icons.FabIcon
+  logoBtn.TextColor3 = Theme.Color.Accent
+  logoBtn.Font = Theme.Font.Icon
+  logoBtn.TextSize = 22
+  logoBtn.AutoButtonColor = false
+  logoBtn.ZIndex = Theme.Z.WindowContent + 1
+
+  local title = makeLabel(header, settings.Name or "BEDWARS", {
+    position = UDim2.new(0, Theme.Touch.HeaderHeight + Theme.Space.SM, 0, 0),
+    font = Theme.Font.Heading, textSize = Theme.Size.Title,
     color = Theme.Color.TextPrimary,
   })
-  title.Size = UDim2.new(1, -120, 1, 0)
+  title.Size = UDim2.new(0.4, 0, 1, 0)
 
-  local accentDot = Instance.new("Frame")
-  accentDot.Parent = header
-  accentDot.BackgroundColor3 = Theme.Color.Accent
-  accentDot.Size = UDim2.new(0, 8, 0, 8)
-  accentDot.Position = UDim2.new(1, -Theme.Space.LG - 8, 0.5, -4)
-  local dotCorner = Instance.new("UICorner")
-  dotCorner.CornerRadius = UDim.new(1, 0)
-  dotCorner.Parent = accentDot
+  local searchBg = Instance.new("Frame")
+  searchBg.Parent = header
+  searchBg.BackgroundColor3 = Theme.Color.SurfaceInset
+  searchBg.BackgroundTransparency = Theme.Alpha.GlassInput
+  searchBg.Size = UDim2.new(0, 140, 0, Theme.Touch.SearchHeight)
+  searchBg.Position = UDim2.new(1, -Theme.Space.MD - 44 - 8 - 140, 0.5, -Theme.Touch.SearchHeight/2)
+  searchBg.ZIndex = Theme.Z.WindowContent + 1
+  searchBg.BorderSizePixel = 0
+  applyGlass(searchBg, { radius = Theme.Radius.Input })
+
+  local searchIcon = Instance.new("TextLabel")
+  searchIcon.Parent = searchBg
+  searchIcon.BackgroundTransparency = 1
+  searchIcon.Size = UDim2.new(0, Theme.Touch.SearchHeight, 1, 0)
+  searchIcon.Position = UDim2.new(0, Theme.Space.SM, 0, 0)
+  searchIcon.Text = Icons.Unicode.Search
+  searchIcon.TextColor3 = Theme.Color.TextMuted
+  searchIcon.Font = Theme.Font.IconSmall
+  searchIcon.TextSize = 14
+  searchIcon.TextXAlignment = Enum.TextXAlignment.Center
+  searchIcon.TextYAlignment = Enum.TextYAlignment.Center
+  searchIcon.ZIndex = Theme.Z.WindowContent + 2
+
+  local searchBox = Instance.new("TextBox")
+  searchBox.Parent = searchBg
+  searchBox.BackgroundTransparency = 1
+  searchBox.Size = UDim2.new(1, -Theme.Touch.SearchHeight - 8, 1, 0)
+  searchBox.Position = UDim2.new(0, Theme.Touch.SearchHeight + 4, 0, 0)
+  searchBox.Text = ""
+  searchBox.PlaceholderText = "Search…"
+  searchBox.PlaceholderColor3 = Theme.Color.TextMuted
+  searchBox.TextColor3 = Theme.Color.TextPrimary
+  searchBox.Font = Theme.Font.Body
+  searchBox.TextSize = Theme.Size.Body
+  searchBox.TextXAlignment = Enum.TextXAlignment.Left
+  searchBox.ClearTextOnFocus = false
+  searchBox.ZIndex = Theme.Z.WindowContent + 2
+  self._searchBox = searchBox
 
   local closeBtn = Instance.new("TextButton")
   closeBtn.Parent = header
-  closeBtn.BackgroundColor3 = Theme.Color.Danger
-  closeBtn.BackgroundTransparency = 0.5
-  closeBtn.Size = UDim2.new(0, 28, 0, 28)
-  closeBtn.Position = UDim2.new(1, -Theme.Space.LG - 24, 0.5, -14)
-  closeBtn.Text = "X"
-  closeBtn.TextColor3 = Theme.Color.TextPrimary
-  closeBtn.Font = Theme.Font.Heading
-  closeBtn.TextSize = 12
-  closeBtn.ZIndex = 11
+  closeBtn.BackgroundTransparency = 1
+  closeBtn.Size = UDim2.fromOffset(44, 44)
+  closeBtn.Position = UDim2.new(1, -44 - Theme.Space.SM, 0.5, -22)
+  closeBtn.Text = Icons.Unicode.Close
+  closeBtn.TextColor3 = Theme.Color.TextSecondary
+  closeBtn.Font = Theme.Font.Icon
+  closeBtn.TextSize = 20
+  closeBtn.ZIndex = Theme.Z.WindowContent + 1
   closeBtn.AutoButtonColor = false
-  local closeCorner = Instance.new("UICorner")
-  closeCorner.CornerRadius = UDim.new(0, Theme.Radius.Pill)
-  closeCorner.Parent = closeBtn
   Input.onTap(closeBtn, function()
     Input.haptic(0.3, 0.08)
     self:SetVisible(false)
   end)
 
-  -- Tab content area (above the bottom tab bar)
-  local contentArea = Instance.new("Frame")
+  -- ─── Top tab bar ───────────────────────────────────────────────────
+  local tabBar = Instance.new("ScrollingFrame")
+  tabBar.Name = "TabBar"
+  tabBar.Parent = win
+  tabBar.Size = UDim2.new(1, 0, 0, Theme.Touch.TopTabHeight)
+  tabBar.Position = UDim2.new(0, 0, 0, Theme.Touch.HeaderHeight)
+  tabBar.BackgroundColor3 = Theme.Color.SurfaceRaised
+  tabBar.BackgroundTransparency = Theme.Alpha.GlassCard
+  tabBar.ScrollBarThickness = 0
+  tabBar.ScrollingDirection = Enum.ScrollingDirection.X
+  tabBar.ElasticBehavior = Enum.ElasticBehavior.Never
+  tabBar.CanvasSize = UDim2.new(0, Theme.Touch.TopTabWidth * 5, 0, 0)
+  tabBar.BorderSizePixel = 0
+  tabBar.ZIndex = Theme.Z.WindowContent
+  applyGlass(tabBar, { radius = 0 })
+
+  local tabBarStroke = Instance.new("UIStroke")
+  tabBarStroke.Color = Theme.Color.Border
+  tabBarStroke.Transparency = Theme.Alpha.Border
+  tabBarStroke.Thickness = 1
+  tabBarStroke.Parent = tabBar
+
+  -- ─── Content area ──────────────────────────────────────────────────
+  local contentArea = Instance.new("ScrollingFrame")
   contentArea.Name = "Content"
   contentArea.Parent = win
   contentArea.BackgroundTransparency = 1
-  contentArea.Position = UDim2.new(0, 0, 0, 56)
-  contentArea.Size = UDim2.new(1, 0, 1, -56 - Theme.Touch.TabHeight)
+  contentArea.Size = UDim2.new(1, 0, 1, -Theme.Touch.HeaderHeight - Theme.Touch.TopTabHeight - Theme.Touch.StatusBarHeight)
+  contentArea.Position = UDim2.new(0, 0, 0, Theme.Touch.HeaderHeight + Theme.Touch.TopTabHeight)
+  contentArea.CanvasSize = UDim2.new(0, 0, 0, 0)
+  contentArea.AutomaticCanvasSize = Enum.AutomaticSize.Y
+  contentArea.ScrollBarThickness = 3
+  contentArea.ScrollBarImageColor3 = Theme.Color.Accent
+  contentArea.ScrollBarImageTransparency = 0.5
+  contentArea.BorderSizePixel = 0
+  contentArea.ZIndex = Theme.Z.WindowContent
   self.contentArea = contentArea
+
+  local contentPadding = Instance.new("UIPadding")
+  contentPadding.Parent = contentArea
+  contentPadding.PaddingTop = UDim.new(0, Theme.Space.MD)
+  contentPadding.PaddingBottom = UDim.new(0, Theme.Space.LG)
+  contentPadding.PaddingLeft = UDim.new(0, Theme.Space.MD)
+  contentPadding.PaddingRight = UDim.new(0, Theme.Space.MD)
 
   local pages = Instance.new("Frame")
   pages.Name = "Pages"
   pages.Parent = contentArea
   pages.BackgroundTransparency = 1
   pages.Size = UDim2.new(1, 0, 1, 0)
+  pages.ZIndex = Theme.Z.WindowContent
   self.pages = pages
 
   local pageLayout = Instance.new("UIPageLayout")
   pageLayout.Parent = pages
   pageLayout.SortOrder = Enum.SortOrder.LayoutOrder
-  pageLayout.EasingDirection = Enum.EasingDirection.In
+  pageLayout.EasingDirection = Enum.EasingDirection.Out
   pageLayout.EasingStyle = Enum.EasingStyle.Quint
-  pageLayout.TweenTime = 0.25
+  pageLayout.TweenTime = Theme.Motion.Open
   pageLayout.Circular = false
   self.pageLayout = pageLayout
 
-  -- Bottom tab bar
-  local tabBar = Instance.new("Frame")
-  tabBar.Name = "TabBar"
-  tabBar.Parent = win
-  tabBar.BackgroundColor3 = Theme.Color.SurfaceRaised
-  tabBar.BackgroundTransparency = Theme.Alpha.GlassCard
-  tabBar.Size = UDim2.new(1, 0, 0, Theme.Touch.TabHeight)
-  tabBar.Position = UDim2.new(0, 0, 1, -Theme.Touch.TabHeight)
-  applyGlass(tabBar, { radius = 0 })
-  self.tabBar = tabBar
+  -- Status bar (will be resized to actual width in SetVisible)
+  self._pendingStatusBarCb = function() end
+  self._pendingStatusBarCb = function()
+    self.statusBar, self._fpsLabel, self._pingLabel, self._activeLabel =
+      createStatusBar(win, function() if self.onPanic then self.onPanic() end end, win.AbsoluteSize.X)
+  end
 
-  local tabLayout = Instance.new("UIListLayout")
-  tabLayout.Parent = tabBar
-  tabLayout.FillDirection = Enum.FillDirection.Horizontal
-  tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-  tabLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-  tabLayout.Padding = UDim.new(0, 0)
+  -- FAB (fixed top-right — NO drag)
+  self.fab = createFab(sg, function() self:SetVisible(not self.open) end,
+    settings.Accent or Theme.Color.Accent)
 
-  -- FAB (floating action button) — always visible
-  self.fab = createFab(sg, function() self:SetVisible(not self.open) end)
+  -- ─── Visibility animation ─────────────────────────────────────────
+  function self:SetVisible(visible)
+    self.open = visible
+    local viewport = getViewportSize()
+    local winW = math.floor(viewport.X * Theme.Window.WidthPct)
+    local winH = math.floor(viewport.Y * Theme.Window.HeightPct)
+    local winX = math.floor((viewport.X - winW) / 2)
+    local winY = math.floor((viewport.Y - winH) / 2)
 
-  -- Drag the window by header
-  Dragger.enable(header, { snapToEdge = false, animate = false })
+    if visible then
+      backdrop.Visible = true
+      win.Visible = true
+      win.Size = UDim2.fromOffset(winW, 0)
+      win.Position = UDim2.fromOffset(winX, winY)
+      TweenService:Create(backdrop,
+        TweenInfo.new(Theme.Motion.Backdrop, Theme.Easing.Backdrop, Enum.EasingDirection.Out),
+        { BackgroundTransparency = Theme.Alpha.Backdrop }
+      ):Play()
+      TweenService:Create(win,
+        TweenInfo.new(Theme.Motion.Open, Theme.Easing.Open, Enum.EasingDirection.Out),
+        { Size = UDim2.fromOffset(winW, winH) }
+      ):Play()
+      -- Build status bar after window has size
+      task.defer(function()
+        if win.AbsoluteSize.X > 100 and not win:FindFirstChild("StatusBar") then
+          self._pendingStatusBarCb()
+          self._startStatusLoop()
+        end
+      end)
+    else
+      TweenService:Create(backdrop,
+        TweenInfo.new(Theme.Motion.Backdrop, Theme.Easing.Backdrop, Enum.EasingDirection.In),
+        { BackgroundTransparency = 1 }
+      ):Play()
+      TweenService:Create(win,
+        TweenInfo.new(Theme.Motion.Open, Theme.Easing.Open, Enum.EasingDirection.In),
+        { Size = UDim2.fromOffset(winW, 0) }
+      ):Play()
+      task.delay(Theme.Motion.Open + 0.02, function()
+        if not self.open then
+          win.Visible = false
+          backdrop.Visible = false
+          self._stopStatusLoop()
+        end
+      end)
+    end
+  end
+
+  -- Status bar live update loop
+  self._statusThread = nil
+  function self._startStatusLoop()
+    if self._statusThread then return end
+    self._statusThread = task.spawn(function()
+      while self.open do
+        pcall(function()
+          if self._fpsLabel then
+            local fps = math.floor(1 / (RunService.RenderStepped:Wait() or 0.016))
+            self._fpsLabel.Text = "FPS " .. fps
+          end
+          if self._pingLabel then
+            local ping = math.floor(tonumber(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) or 0)
+            self._pingLabel.Text = "Ping " .. ping .. "ms"
+          end
+          if self._activeLabel then
+            self._activeLabel.Text = self.activeCount .. "/14 ON"
+          end
+        end)
+        task.wait(0.5)
+      end
+    end)
+  end
+  function self._stopStatusLoop()
+    if self._statusThread then
+      pcall(function() task.cancel(self._statusThread) end)
+      self._statusThread = nil
+    end
+  end
 
   return self
 end
 
-function Library:SetVisible(visible)
-  self.open = visible
-  if visible then
-    self.window.Visible = true
-    self.window.Size = UDim2.new(0, 380, 0, 0)
-    TweenService:Create(self.window,
-      TweenInfo.new(Theme.Motion.Open, Theme.Easing.Open, Enum.EasingDirection.Out),
-      { Size = UDim2.new(0, 380, 0, 480) }
-    ):Play()
-  else
-    TweenService:Create(self.window,
-      TweenInfo.new(Theme.Motion.Open, Theme.Easing.Open, Enum.EasingDirection.In),
-      { Size = UDim2.new(0, 380, 0, 0) }
-    ):Play()
-    task.delay(Theme.Motion.Open + 0.05, function()
-      if not self.open then self.window.Visible = false end
-    end)
-  end
-end
-
 -- ─── Tab ─────────────────────────────────────────────────────────────────────
 
-function Library:CreateTab(name, iconAssetId)
+function Library:CreateTab(name, iconSpec)
   local tab = {}
   tab.sections = {}
 
-  -- Tab page (the scrollable content)
   local page = Instance.new("ScrollingFrame")
   page.Name = name .. "Page"
   page.Parent = self.pages
@@ -373,7 +581,7 @@ function Library:CreateTab(name, iconAssetId)
   page.ScrollBarImageColor3 = Theme.Color.TextMuted
   page.ScrollBarImageTransparency = 0.5
   page.BorderSizePixel = 0
-  page.CanvasPosition = Vector2.new(0, 0)
+  page.ZIndex = Theme.Z.WindowContent
 
   local padding = Instance.new("UIPadding")
   padding.Parent = page
@@ -386,59 +594,60 @@ function Library:CreateTab(name, iconAssetId)
   list.Parent = page
   list.SortOrder = Enum.SortOrder.LayoutOrder
   list.Padding = UDim.new(0, Theme.Space.SM)
+  list.ZIndex = Theme.Z.WindowContent
 
-  -- Tab button in the bottom bar
+  -- Tab button
+  local tabBar = self.window:FindFirstChild("TabBar")
   local btn = Instance.new("TextButton")
   btn.Name = name .. "TabBtn"
-  btn.Parent = self.tabBar
-  btn.BackgroundColor3 = Theme.Color.Transparent and Theme.Color.Surface or Theme.Color.Surface
+  btn.Parent = tabBar
+  btn.Size = UDim2.fromOffset(Theme.Touch.TopTabWidth, Theme.Touch.TopTabHeight)
+  btn.Position = UDim2.new(0, #self.tabs * Theme.Touch.TopTabWidth, 0, 0)
   btn.BackgroundTransparency = 1
-  btn.Size = UDim2.new(0, 70, 1, 0)
   btn.Text = ""
   btn.AutoButtonColor = false
+  btn.BorderSizePixel = 0
+  btn.ZIndex = Theme.Z.WindowContent + 1
   btn.LayoutOrder = #self.tabs + 1
 
-  local icon = Instance.new("ImageLabel")
+  local icon = Instance.new("TextLabel")
   icon.Parent = btn
   icon.BackgroundTransparency = 1
   icon.Size = UDim2.new(0, Theme.Size.Icon, 0, Theme.Size.Icon)
-  icon.Position = UDim2.new(0.5, -Theme.Size.Icon/2, 0.5, -Theme.Size.Icon/2 - 8)
-  icon.Image = "rbxassetid://" .. tostring(iconAssetId or Icons.Misc)
-  icon.ImageColor3 = Theme.Color.TextSecondary
+  icon.Position = UDim2.new(0, Theme.Space.MD, 0.5, -Theme.Size.Icon/2)
+  icon.Font = Theme.Font.Icon
+  icon.TextSize = Theme.Size.Icon
+  icon.Text = tostring(iconSpec or "◆")
+  icon.TextColor3 = Theme.Color.TabInactive
+  icon.TextXAlignment = Enum.TextXAlignment.Center
+  icon.TextYAlignment = Enum.TextYAlignment.Center
+  icon.ZIndex = Theme.Z.WindowContent + 2
 
-  local label = Instance.new("TextLabel")
-  label.Parent = btn
-  label.BackgroundTransparency = 1
-  label.Size = UDim2.new(1, 0, 0, 14)
-  label.Position = UDim2.new(0, 0, 1, -14)
-  label.Font = Theme.Font.Label
-  label.Text = name
-  label.TextColor3 = Theme.Color.TextSecondary
-  label.TextSize = Theme.Size.Caption
-  label.TextXAlignment = Enum.TextXAlignment.Center
+  local label = makeLabel(btn, name, {
+    position = UDim2.new(0, Theme.Space.MD + Theme.Size.Icon + Theme.Space.SM, 0, 0),
+    font = Theme.Font.Tab, textSize = Theme.Size.Tab,
+    color = Theme.Color.TabInactive,
+  })
+  label.Size = UDim2.new(1, -Theme.Space.MD * 2 - Theme.Size.Icon - Theme.Space.SM, 1, 0)
 
   local indicator = Instance.new("Frame")
   indicator.Parent = btn
+  indicator.Size = UDim2.new(0.7, 0, 0, 2)
+  indicator.Position = UDim2.new(0.15, 0, 1, -2)
   indicator.BackgroundColor3 = Theme.Color.Accent
-  indicator.Size = UDim2.new(0, 24, 0, 2)
-  indicator.Position = UDim2.new(0.5, -12, 0, 0)
   indicator.Visible = (#self.tabs == 0)
+  indicator.ZIndex = Theme.Z.WindowContent + 3
+  indicator.BorderSizePixel = 0
   local indCorner = Instance.new("UICorner")
   indCorner.CornerRadius = UDim.new(1, 0)
   indCorner.Parent = indicator
 
   Input.onTap(btn, function()
     Input.haptic(0.2, 0.05)
-    self.pageLayout:JumpTo(page)
-    -- Update indicators
     for _, t in ipairs(self.tabs) do
-      t.indicator.Visible = false
-      t.icon.ImageColor3 = Theme.Color.TextSecondary
-      t.label.TextColor3 = Theme.Color.TextSecondary
+      Anim.tabSwitch(t, t == tab and tab or nil)
     end
-    indicator.Visible = true
-    icon.ImageColor3 = Theme.Color.Accent
-    label.TextColor3 = Theme.Color.Accent
+    self.pageLayout:JumpTo(page)
   end)
 
   tab.page = page
@@ -448,39 +657,32 @@ function Library:CreateTab(name, iconAssetId)
   tab.indicator = indicator
   tab.list = list
 
-  -- If first tab, jump to it
   if #self.tabs == 0 then
     self.pageLayout:JumpTo(page)
-    icon.ImageColor3 = Theme.Color.Accent
-    label.TextColor3 = Theme.Color.Accent
+    icon.TextColor3 = Theme.Color.TabActive
+    label.TextColor3 = Theme.Color.TabActive
+    indicator.Visible = true
   end
 
   table.insert(self.tabs, tab)
-
-  -- Add tab methods
-  function tab:CreateSection(name)
-    return Library._createSection(self, name)
-  end
-
+  function tab:CreateSection(name) return Library._createSection(self, name) end
   return tab
 end
 
--- ─── Section ─────────────────────────────────────────────────────────────────
+-- ─── Section ───────────────────────────────────────────────────────────────
 
 function Library._createSection(tab, name)
   local section = {}
   section.elements = {}
 
-  -- Section title
   local title = makeLabel(tab.page, name, {
     position = UDim2.new(0, Theme.Space.XS, 0, 0),
     font = Theme.Font.Heading, textSize = Theme.Size.Heading,
-    color = Theme.Color.TextSecondary,
+    color = Theme.Color.Accent,
   })
   title.Size = UDim2.new(1, -Theme.Space.XS * 2, 0, 24)
   title.LayoutOrder = #tab.sections * 1000
 
-  -- Container for elements
   local container = Instance.new("Frame")
   container.Name = name .. "Container"
   container.Parent = tab.page
@@ -489,31 +691,31 @@ function Library._createSection(tab, name)
   container.Size = UDim2.new(1, 0, 0, 0)
   container.AutomaticSize = Enum.AutomaticSize.Y
   container.LayoutOrder = (#tab.sections * 1000) + 1
-  container.ClipsDescendants = true  -- clips flat rows to the rounded container shape
+  container.ClipsDescendants = true
+  container.BorderSizePixel = 0
+  container.ZIndex = Theme.Z.WindowContent
   applyGlass(container, { radius = Theme.Radius.Card, transparency = Theme.Alpha.GlassCard })
 
   local cl = Instance.new("UIListLayout")
   cl.Parent = container
   cl.SortOrder = Enum.SortOrder.LayoutOrder
   cl.Padding = UDim.new(0, 1)
+  cl.ZIndex = Theme.Z.WindowContent
 
   section.container = container
   section.layout = cl
-
   table.insert(tab.sections, section)
 
-  -- Methods
-  function section:CreateToggle(opts)   return Library._createToggle(section, opts) end
-  function section:CreateSlider(opts)   return Library._createSlider(section, opts) end
-  function section:CreateButton(opts)   return Library._createButton(section, opts) end
-  function section:CreateKeybind(opts)  return Library._createKeybind(section, opts) end
-  function section:CreateDropdown(opts) return Library._createDropdown(section, opts) end
-  function section:CreateLabel(text)    return Library._createLabel(section, text) end
-
+  function section:CreateToggle(opts)   return Library._createToggle(self, opts) end
+  function section:CreateSlider(opts)   return Library._createSlider(self, opts) end
+  function section:CreateButton(opts)   return Library._createButton(self, opts) end
+  function section:CreateKeybind(opts)  return Library._createKeybind(self, opts) end
+  function section:CreateDropdown(opts) return Library._createDropdown(self, opts) end
+  function section:CreateLabel(text)    return Library._createLabel(self, text) end
   return section
 end
 
--- ─── Element: Toggle ────────────────────────────────────────────────────────
+-- ─── Toggle ────────────────────────────────────────────────────────────────
 
 function Library._createToggle(section, opts)
   opts = opts or {}
@@ -526,21 +728,29 @@ function Library._createToggle(section, opts)
   row.Text = ""
   row.AutoButtonColor = false
   row.LayoutOrder = #section.elements + 1
-  applyGlass(row, { radius = 0 })
+  row.BorderSizePixel = 0
+  row.ZIndex = Theme.Z.WindowContent
+
+  if opts.Icon then
+    Icons.applyIcon(row, opts.Icon, Theme.Color.TextSecondary, Theme.Size.IconSmall).Position =
+      UDim2.new(0, Theme.Space.MD, 0.5, -Theme.Size.IconSmall/2)
+  end
 
   local label = makeLabel(row, opts.Name or "Toggle", {
-    position = UDim2.new(0, Theme.Space.LG, 0, 0),
+    position = opts.Icon and UDim2.new(0, Theme.Space.MD + Theme.Size.IconSmall + Theme.Space.SM, 0, 0)
+                      or UDim2.new(0, Theme.Space.LG, 0, 0),
     font = Theme.Font.Body, textSize = Theme.Size.Body,
     color = Theme.Color.TextPrimary,
   })
-  label.Size = UDim2.new(1, -100, 1, 0)
+  label.Size = UDim2.new(1, -120, 1, 0)
 
-  -- iOS-style switch
   local track = Instance.new("Frame")
   track.Parent = row
   track.BackgroundColor3 = Theme.Color.SurfaceInset
-  track.Size = UDim2.new(0, 44, 0, 24)
+  track.Size = UDim2.fromOffset(44, 24)
   track.Position = UDim2.new(1, -Theme.Space.LG - 44, 0.5, -12)
+  track.BorderSizePixel = 0
+  track.ZIndex = Theme.Z.WindowContent + 1
   local trackCorner = Instance.new("UICorner")
   trackCorner.CornerRadius = UDim.new(1, 0)
   trackCorner.Parent = track
@@ -548,30 +758,20 @@ function Library._createToggle(section, opts)
   local knob = Instance.new("Frame")
   knob.Parent = track
   knob.BackgroundColor3 = Theme.Color.TextMuted
-  knob.Size = UDim2.new(0, 18, 0, 18)
+  knob.Size = UDim2.fromOffset(18, 18)
+  knob.BorderSizePixel = 0
+  knob.ZIndex = Theme.Z.WindowContent + 2
   local knobCorner = Instance.new("UICorner")
   knobCorner.CornerRadius = UDim.new(1, 0)
   knobCorner.Parent = knob
 
   local state = opts.CurrentValue or false
-  local function render()
-    local targetX = state and (44 - 18 - 3) or 3
-    TweenService:Create(knob,
-      TweenInfo.new(Theme.Motion.Tap, Theme.Easing.Tap, Enum.EasingDirection.Out),
-      { Position = UDim2.new(0, targetX, 0.5, -9),
-        BackgroundColor3 = state and Theme.Color.Accent or Theme.Color.TextMuted }
-    ):Play()
-    TweenService:Create(track,
-      TweenInfo.new(Theme.Motion.Tap, Theme.Easing.Tap, Enum.EasingDirection.Out),
-      { BackgroundColor3 = state and Color3.fromRGB(16, 185, 129, 0.3) or Theme.Color.SurfaceInset }
-    ):Play()
-  end
-  -- Initial position
+  local function render() Anim.toggle(track, knob, state) end
+  -- iOS pattern: WHITE knob on ACCENT track
   knob.Position = UDim2.new(0, state and (44 - 18 - 3) or 3, 0.5, -9)
   if state then
-    knob.BackgroundColor3 = Theme.Color.Accent
+    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     track.BackgroundColor3 = Color3.fromRGB(16, 185, 129)
-    track.BackgroundTransparency = 0.7
   end
 
   local toggle = { state = state, row = row, knob = knob, track = track }
@@ -583,9 +783,9 @@ function Library._createToggle(section, opts)
   end
 
   Input.onTap(row, function()
-    Input.haptic(0.25, 0.08)
+    Input.haptic(0.3, 0.08)
     Anim.press(row)
-    task.delay(0.1, function() Anim.release(row) end)
+    task.delay(Theme.Motion.Press + 0.02, function() Anim.release(row) end)
     state = not state
     render()
     if opts.Callback then task.spawn(opts.Callback, state) end
@@ -595,7 +795,7 @@ function Library._createToggle(section, opts)
   return toggle
 end
 
--- ─── Element: Slider ────────────────────────────────────────────────────────
+-- ─── Slider ────────────────────────────────────────────────────────────────
 
 function Library._createSlider(section, opts)
   opts = opts or {}
@@ -610,10 +810,17 @@ function Library._createSlider(section, opts)
   row.BackgroundTransparency = Theme.Alpha.GlassCard
   row.Size = UDim2.new(1, 0, 0, Theme.Touch.RowHeight + 12)
   row.LayoutOrder = #section.elements + 1
-  applyGlass(row, { radius = 0 })
+  row.BorderSizePixel = 0
+  row.ZIndex = Theme.Z.WindowContent
+
+  if opts.Icon then
+    Icons.applyIcon(row, opts.Icon, Theme.Color.TextSecondary, Theme.Size.IconSmall).Position =
+      UDim2.new(0, Theme.Space.MD, 0, Theme.Space.SM)
+  end
 
   local label = makeLabel(row, opts.Name or "Slider", {
-    position = UDim2.new(0, Theme.Space.LG, 0, Theme.Space.SM),
+    position = opts.Icon and UDim2.new(0, Theme.Space.MD + Theme.Size.IconSmall + Theme.Space.SM, 0, Theme.Space.SM)
+                      or UDim2.new(0, Theme.Space.LG, 0, Theme.Space.SM),
     font = Theme.Font.Body, textSize = Theme.Size.Body,
     color = Theme.Color.TextPrimary,
   })
@@ -626,16 +833,18 @@ function Library._createSlider(section, opts)
   valueLabel.Size = UDim2.new(0, 60, 0, 20)
   valueLabel.Font = Theme.Font.Mono
   valueLabel.Text = tostring(value)
-  valueLabel.TextColor3 = Theme.Color.Accent
-  valueLabel.TextSize = Theme.Size.Body
+  valueLabel.TextColor3 = Theme.Color.Gold
+  valueLabel.TextSize = Theme.Size.Value
   valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+  valueLabel.TextYAlignment = Enum.TextYAlignment.Center
 
-  -- Track
   local track = Instance.new("Frame")
   track.Parent = row
   track.BackgroundColor3 = Theme.Color.SurfaceInset
   track.Size = UDim2.new(1, -Theme.Space.LG * 2, 0, 6)
   track.Position = UDim2.new(0, Theme.Space.LG, 0, 34)
+  track.BorderSizePixel = 0
+  track.ZIndex = Theme.Z.WindowContent
   local trackCorner = Instance.new("UICorner")
   trackCorner.CornerRadius = UDim.new(1, 0)
   trackCorner.Parent = track
@@ -644,6 +853,7 @@ function Library._createSlider(section, opts)
   fill.Parent = track
   fill.BackgroundColor3 = Theme.Color.Accent
   fill.Size = UDim2.new(0, 0, 1, 0)
+  fill.BorderSizePixel = 0
   local fillCorner = Instance.new("UICorner")
   fillCorner.CornerRadius = UDim.new(1, 0)
   fillCorner.Parent = fill
@@ -654,16 +864,14 @@ function Library._createSlider(section, opts)
   hitbox.Size = UDim2.new(1, 0, 0, Theme.Touch.MinTarget)
   hitbox.Position = UDim2.new(0, 0, 0.5, -Theme.Touch.MinTarget/2)
   hitbox.Text = ""
+  hitbox.BorderSizePixel = 0
   hitbox.ZIndex = 5
 
   local slider = { value = value, row = row, fill = fill, valueLabel = valueLabel }
 
   local function render()
     local ratio = (value - range[1]) / (range[2] - range[1])
-    TweenService:Create(fill,
-      TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-      { Size = UDim2.new(math.clamp(ratio, 0, 1), 0, 1, 0) }
-    ):Play()
+    Anim.slider(fill, ratio)
     valueLabel.Text = tostring(math.floor(value * 100) / 100) .. (opts.Suffix or "")
   end
   render()
@@ -674,7 +882,6 @@ function Library._createSlider(section, opts)
     if opts.Callback then task.spawn(opts.Callback, value) end
   end
 
-  -- Drag handler
   local dragging = false
   hitbox.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1
@@ -709,7 +916,7 @@ function Library._createSlider(section, opts)
   return slider
 end
 
--- ─── Element: Button ─────────────────────────────────────────────────────────
+-- ─── Button ────────────────────────────────────────────────────────────────
 
 function Library._createButton(section, opts)
   opts = opts or {}
@@ -722,10 +929,17 @@ function Library._createButton(section, opts)
   row.Text = ""
   row.AutoButtonColor = false
   row.LayoutOrder = #section.elements + 1
-  applyGlass(row, { radius = 0 })
+  row.BorderSizePixel = 0
+  row.ZIndex = Theme.Z.WindowContent
+
+  if opts.Icon then
+    Icons.applyIcon(row, opts.Icon, Theme.Color.TextSecondary, Theme.Size.IconSmall).Position =
+      UDim2.new(0, Theme.Space.MD, 0.5, -Theme.Size.IconSmall/2)
+  end
 
   local label = makeLabel(row, opts.Name or "Button", {
-    position = UDim2.new(0, Theme.Space.LG, 0, 0),
+    position = opts.Icon and UDim2.new(0, Theme.Space.MD + Theme.Size.IconSmall + Theme.Space.SM, 0, 0)
+                      or UDim2.new(0, Theme.Space.LG, 0, 0),
     font = Theme.Font.Body, textSize = Theme.Size.Body,
     color = Theme.Color.TextPrimary,
   })
@@ -733,18 +947,16 @@ function Library._createButton(section, opts)
   label.TextXAlignment = Enum.TextXAlignment.Center
 
   local button = { row = row }
-  function button:Set(newName)
-    label.Text = newName
-  end
+  function button:Set(newName) label.Text = newName end
 
   Input.onTap(row, function()
     Input.haptic(0.3, 0.08)
     Anim.press(row)
-    task.delay(0.1, function() Anim.release(row) end)
+    task.delay(Theme.Motion.Press + 0.02, function() Anim.release(row) end)
     if opts.Callback then
       local ok, err = pcall(opts.Callback)
       if not ok then
-        Library:Notify({ Title = "Callback Error", Content = tostring(err), Duration = 4 })
+        Library:Notify({ Title = "⚠ Error", Content = tostring(err), Duration = 4 })
       end
     end
   end)
@@ -753,7 +965,7 @@ function Library._createButton(section, opts)
   return button
 end
 
--- ─── Element: Keybind ───────────────────────────────────────────────────────
+-- ─── Keybind ──────────────────────────────────────────────────────────────
 
 function Library._createKeybind(section, opts)
   opts = opts or {}
@@ -768,10 +980,17 @@ function Library._createKeybind(section, opts)
   row.Text = ""
   row.AutoButtonColor = false
   row.LayoutOrder = #section.elements + 1
-  applyGlass(row, { radius = 0 })
+  row.BorderSizePixel = 0
+  row.ZIndex = Theme.Z.WindowContent
+
+  if opts.Icon then
+    Icons.applyIcon(row, opts.Icon, Theme.Color.TextSecondary, Theme.Size.IconSmall).Position =
+      UDim2.new(0, Theme.Space.MD, 0.5, -Theme.Size.IconSmall/2)
+  end
 
   local label = makeLabel(row, opts.Name or "Keybind", {
-    position = UDim2.new(0, Theme.Space.LG, 0, 0),
+    position = opts.Icon and UDim2.new(0, Theme.Space.MD + Theme.Size.IconSmall + Theme.Space.SM, 0, 0)
+                      or UDim2.new(0, Theme.Space.LG, 0, 0),
     font = Theme.Font.Body, textSize = Theme.Size.Body,
     color = Theme.Color.TextPrimary,
   })
@@ -784,9 +1003,10 @@ function Library._createKeybind(section, opts)
   keyLabel.Size = UDim2.new(0, 80, 1, 0)
   keyLabel.Font = Theme.Font.Mono
   keyLabel.Text = currentKey
-  keyLabel.TextColor3 = Theme.Color.Accent
-  keyLabel.TextSize = Theme.Size.Body
+  keyLabel.TextColor3 = Theme.Color.Gold
+  keyLabel.TextSize = Theme.Size.Value
   keyLabel.TextXAlignment = Enum.TextXAlignment.Right
+  keyLabel.TextYAlignment = Enum.TextYAlignment.Center
 
   local keybind = { key = currentKey, row = row, keyLabel = keyLabel }
   function keybind:Set(newKey)
@@ -804,13 +1024,11 @@ function Library._createKeybind(section, opts)
   UserInputService.InputBegan:Connect(function(input, processed)
     if processed then return end
     if not listening then
-      -- Normal keybind trigger
       if input.KeyCode.Name == currentKey and opts.Callback then
         task.spawn(opts.Callback)
       end
       return
     end
-    -- Listening for new key
     if input.KeyCode ~= Enum.KeyCode.Unknown then
       currentKey = input.KeyCode.Name
       keyLabel.Text = currentKey
@@ -822,7 +1040,7 @@ function Library._createKeybind(section, opts)
   return keybind
 end
 
--- ─── Element: Dropdown ──────────────────────────────────────────────────────
+-- ─── Dropdown ─────────────────────────────────────────────────────────────
 
 function Library._createDropdown(section, opts)
   opts = opts or {}
@@ -838,14 +1056,21 @@ function Library._createDropdown(section, opts)
   row.Text = ""
   row.AutoButtonColor = false
   row.LayoutOrder = #section.elements + 1
-  applyGlass(row, { radius = 0 })
+  row.BorderSizePixel = 0
+  row.ZIndex = Theme.Z.WindowContent
+
+  if opts.Icon then
+    Icons.applyIcon(row, opts.Icon, Theme.Color.TextSecondary, Theme.Size.IconSmall).Position =
+      UDim2.new(0, Theme.Space.MD, 0.5, -Theme.Size.IconSmall/2)
+  end
 
   local label = makeLabel(row, opts.Name or "Dropdown", {
-    position = UDim2.new(0, Theme.Space.LG, 0, 0),
+    position = opts.Icon and UDim2.new(0, Theme.Space.MD + Theme.Size.IconSmall + Theme.Space.SM, 0, 0)
+                      or UDim2.new(0, Theme.Space.LG, 0, 0),
     font = Theme.Font.Body, textSize = Theme.Size.Body,
     color = Theme.Color.TextPrimary,
   })
-  label.Size = UDim2.new(1, -120, 1, 0)
+  label.Size = UDim2.new(1, -100, 1, 0)
 
   local valueLabel = Instance.new("TextLabel")
   valueLabel.Parent = row
@@ -854,9 +1079,10 @@ function Library._createDropdown(section, opts)
   valueLabel.Size = UDim2.new(0, 80, 1, 0)
   valueLabel.Font = Theme.Font.Mono
   valueLabel.Text = tostring(current)
-  valueLabel.TextColor3 = Theme.Color.Accent
-  valueLabel.TextSize = Theme.Size.Body
+  valueLabel.TextColor3 = Theme.Color.Gold
+  valueLabel.TextSize = Theme.Size.Value
   valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+  valueLabel.TextYAlignment = Enum.TextYAlignment.Center
 
   local dropdown = { value = current, options = options, row = row, valueLabel = valueLabel }
   function dropdown:Set(val)
@@ -870,21 +1096,20 @@ function Library._createDropdown(section, opts)
     valueLabel.Text = tostring(current)
   end
 
-  -- Simple cycle on tap (mobile-friendly — no expand/collapse menu for v1)
   Input.onTap(row, function()
     Input.haptic(0.2, 0.05)
     Anim.press(row)
-    task.delay(0.1, function() Anim.release(row) end)
+    task.delay(Theme.Motion.Press + 0.02, function() Anim.release(row) end)
     local idx = table.find(options, current) or 0
-    local next = options[(idx % #options) + 1]
-    if next then dropdown:Set(next) end
+    local nextOpt = options[(idx % #options) + 1]
+    if nextOpt then dropdown:Set(nextOpt) end
   end)
 
   table.insert(section.elements, dropdown)
   return dropdown
 end
 
--- ─── Element: Label ─────────────────────────────────────────────────────────
+-- ─── Label ─────────────────────────────────────────────────────────────────
 
 function Library._createLabel(section, text)
   local lbl = makeLabel(section.container, text, {

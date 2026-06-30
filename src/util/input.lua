@@ -1,17 +1,15 @@
 -- src/util/input.lua
 -- Unified touch + mouse + keyboard input helpers.
--- WHY: every feature needs to know "is the user pressing X" —
--- we centralize so features don't each wire UserInputService.
+-- Haptic fallback chain: executor-specific vibrate() → HapticService → gamepad motor.
+
 local UserInputService = game:GetService("UserInputService")
 
 local Input = {}
 
--- True if the user is on a touch device (mobile).
 function Input.isTouch()
   return UserInputService.TouchEnabled
 end
 
--- True if a key is currently down. Accepts Enum.KeyCode or string.
 function Input.isKeyDown(key)
   if type(key) == "string" then
     key = Enum.KeyCode[key]
@@ -19,8 +17,6 @@ function Input.isKeyDown(key)
   return UserInputService:IsKeyDown(key)
 end
 
--- Listen for a key press. Returns cleanup function.
--- usage: Input.onKeyDown("P", function() ... end)
 function Input.onKeyDown(key, callback)
   if type(key) == "string" then
     key = Enum.KeyCode[key]
@@ -34,8 +30,6 @@ function Input.onKeyDown(key, callback)
   return function() conn:Disconnect() end
 end
 
--- Listen for a touch/click on a GuiObject. Handles both Mouse and Touch.
--- Returns cleanup function.
 function Input.onTap(guiObject, callback)
   local conns = {}
   table.insert(conns, guiObject.InputBegan:Connect(function(input)
@@ -49,21 +43,32 @@ function Input.onTap(guiObject, callback)
   end
 end
 
--- Haptic feedback (vibration) — silently no-ops if no vibration API available.
--- On mobile executors: tries executor-specific `vibrate(ms)` first, then falls
--- back to Gamepad motor (only works if a gamepad is connected).
--- strength: 0..1, duration: seconds (capped to 1s).
+-- Haptic feedback (vibration) — tries executor-specific first, then gamepad.
 function Input.haptic(strength, duration)
   strength = math.clamp(strength or 0.3, 0, 1)
   duration = math.min(duration or 0.1, 1)
 
-  -- 1. Try executor-specific vibrate() function (some executors expose this)
+  -- 1. Try executor-specific vibrate()
   if vibrate then
     pcall(function() vibrate(duration * 1000) end)
     return
   end
 
-  -- 2. Fall back to gamepad motor (only works with a connected gamepad)
+  -- 2. Try HapticService (Roblox iOS/Android native)
+  pcall(function()
+    local HapticService = game:GetService("HapticService")
+    if HapticService:IsMotorSupported(Enum.UserInputType.Gamepad1, Enum.VibrationMotor.Small) then
+      HapticService:SetMotor(Enum.UserInputType.Gamepad1, Enum.VibrationMotor.Small, strength)
+      task.delay(duration, function()
+        pcall(function()
+          HapticService:SetMotor(Enum.UserInputType.Gamepad1, Enum.VibrationMotor.Small, 0)
+        end)
+      end)
+      return
+    end
+  end)
+
+  -- 3. Fall back to UserInputService (gamepad)
   if not UserInputService.GamepadEnabled then return end
   pcall(function()
     UserInputService:SetMotorVibration(
@@ -74,12 +79,16 @@ function Input.haptic(strength, duration)
     task.delay(duration, function()
       pcall(function()
         UserInputService:SetMotorVibration(
-          Enum.UserInputType.Gamepad1,
-          Enum.VibrationMotor.Small, 0
+          Enum.UserInputType.Gamepad1, Enum.VibrationMotor.Small, 0
         )
       end)
     end)
   end)
+end
+
+function Input.isTapInput(input)
+  return input.UserInputType == Enum.UserInputType.MouseButton1
+      or input.UserInputType == Enum.UserInputType.Touch
 end
 
 return Input

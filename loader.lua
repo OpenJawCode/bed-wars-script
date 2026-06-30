@@ -85,6 +85,12 @@ local function tryFetch(url, name)
 end
 
 -- List of modules to fetch
+-- CRITICAL: ui/toast.lua and ui/rotation.lua MUST be included here.
+-- B033: Library.lua references _BW.Toast and _BW.Rotation. If they're
+-- nil (loader never loaded them), the library silently skips
+-- Toast.setParent(sg) AND Rotation.start(...), AND main.lua falls
+-- back to Library:Notify (which works but uses a DIFFERENT system).
+-- Result: no actual bug crash, but the user gets a half-broken UI.
 local MODULES = {
   "util/logger.lua",
   "ui/theme.lua",
@@ -94,6 +100,8 @@ local MODULES = {
   "util/projection.lua",
   "ui/animations.lua",
   "ui/icons.lua",
+  "ui/toast.lua",
+  "ui/rotation.lua",
   "ui/library.lua",
   "config.lua",
   "game/placeid.lua",
@@ -176,6 +184,8 @@ for path, src in pairs(sources) do
   elseif name == "projection" then var = "Projection"
   elseif name == "animations" then var = "Anim"
   elseif name == "icons" then var = "Icons"
+  elseif name == "toast" then var = "Toast"
+  elseif name == "rotation" then var = "Rotation"
   elseif name == "library" then var = "Library"
   elseif name == "config" then var = "Config"
   elseif name == "placeid" then var = "PlaceId"

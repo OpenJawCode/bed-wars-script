@@ -472,3 +472,134 @@ Based on the patterns in this log, the next bugs the user will likely report:
 - **E.** "The gold accent clashes with the Bed Wars team colors (yellow team)" — solved by using different accent when in-game
 
 Watch for these.
+
+---
+
+## B029–B033 — v1.4.1 audit (2026-06-30 14:36)
+
+**Trigger:** User reported "The button nor the UI does not fucking load wtf is this" + toasts look like "AI slop" (glossy, generic, no glow). UI completely invisible after running the loadstring. Screenshot confirmed — Bedwars game running, NO script UI visible anywhere.
+
+**Audit method:** Read the entire boot path (loader.lua → main.lua → library.lua) looking for "set to invisible, tween to visible" patterns. Found FOUR distinct instances.
+
+---
+
+### B029 — Root cause: "set to invisible, tween to visible" pattern fails silently in some executors
+
+**Symptom:** User runs loadstring, nothing appears. No FAB, no menu, no error overlay.
+
+**Root cause:** The pattern:
+```lua
+element.BackgroundTransparency = 1  -- start invisible
+TweenService:Create(element, tweenInfo, { BackgroundTransparency = 0 }):Play()  -- tween to visible
+```
+Looks fine in theory. But TweenService can be flaky in some executor environments (Delta, Codex sandboxes). When the tween fails silently, the element STAYS at transparency 1 = fully transparent = INVISIBLE.
+
+This is the same pattern as B001 (FAB not appearing). The v1.4 fix attempted to "fix" it by setting the size to full immediately — but kept the transparency 1 → 0 tween. The bug moved from "size 0" to "transparency 1." Both are invisible states.
+
+**Fix:** Set the element to its FINAL state immediately. If you want a slide-in animation, do it via a SAFE property (Position offset) wrapped in pcall, with a safety task.delay to force the final state.
+
+**Lesson:** "Tween from invisible" is a fragile pattern. Always start at the visible state, animate from a non-visible-only property. The tween can fail; the visible state can't.
+
+---
+
+### B030 — Window opens at transparency 1
+
+**Location:** `src/ui/library.lua` v1.4 SetVisible function.
+
+```lua
+win.BackgroundTransparency = 1  -- start invisible  ← BUG
+TweenService:Create(win, ..., { BackgroundTransparency = Theme.Alpha.GlassPanel }):Play()
+```
+
+**Fix:** Set `win.BackgroundTransparency = Theme.Alpha.GlassPanel` immediately. Then in pcall, optionally set position offset and tween to final position. The tween only animates Position — never a visibility property.
+
+---
+
+### B031 — FAB sets BackgroundTransparency = 0 then back to 1
+
+**Location:** `src/ui/library.lua` createFab function.
+
+```lua
+fab.BackgroundTransparency = 0  -- visible
+-- ... gradient, corner, strokes ...
+fab.BackgroundTransparency = 1  -- ← BUG: back to invisible
+TweenService:Create(fab, ..., { BackgroundTransparency = 0 }):Play()  -- tween back
+```
+
+This was the worst one. The code sets transparency to 0 (visible), builds all the visual properties, then sets it BACK to 1 (invisible) so it can tween to visible. If the tween fails, FAB is invisible despite being full size.
+
+**Fix:** Removed the "set to 1 + tween" pattern entirely. The FAB is created in its final state. Pulse glow is wrapped in pcall. Done.
+
+---
+
+### B032 — Toast cards start at transparency 1
+
+**Location:** `src/ui/toast.lua` buildToast function.
+
+```lua
+card.BackgroundTransparency = 1  -- start invisible  ← BUG
+```
+
+Toasts that failed to tween were never visible.
+
+**Fix:** Card is created in final state (transparency 0.08, matte). Slide-in animation is a Position offset on the glow frame (which is BEHIND the card), not on the card's visibility.
+
+---
+
+### B033 — Loader doesn't load ui/toast.lua or ui/rotation.lua
+
+**Location:** `loader.lua` MODULES list.
+
+The library references `_BW.Toast` and `_BW.Rotation`, but the loader MODULES list and the variable-mapping if/elseif chain had no entries for them. Result: when main.lua called `Toast.success(...)`, it silently failed (the if/elseif chain was nil).
+
+**Why the UI still worked:** Library.lua has `if Toast and Toast.setParent then` guards, so it gracefully no-ops when Toast is nil. Main.lua falls back to `Library:Notify(...)`. The user got a half-broken UI: no fancy toasts, no rotation handling.
+
+**Fix:** Added `ui/toast.lua` and `ui/rotation.lua` to MODULES, added `Toast` and `Rotation` to the variable mapping. Updated `bw.verify()` to check for them.
+
+---
+
+### Toast redesign — "Liquid glass neon" v1.4.1
+
+User said toasts look like "AI slop" and want:
+- Matte (not glossy)
+- Chromatic
+- Glasmorphic
+- Glowing (not bordered)
+- Liquid glass neon
+
+**Old design (AI slop):**
+- Rounded rectangle with colored left border (Material You generic)
+- UIStroke border (generic)
+- BackgroundColor3 = Theme.Color.Surface (same as everything else)
+- BackgroundTransparency = GlassPanel (semi-transparent = glossy)
+- 4pt left accent strip
+- "ON" / "ERROR" type label badge (Material 3 generic)
+- No glow, no chromatic, no depth
+
+**New design (anti-AI-slop):**
+- **Glow frame BEHIND the card** (larger, accent color, 88% transparent) — neon halo
+- **Card: matte dark glass** (BackgroundColor3 = #0B0F18, transparency 0.08 = nearly opaque, NOT glossy)
+- **No UIStroke** — the glow IS the border
+- **1pt top highlight line** (white 78% transparent) — liquid glass edge effect
+- **Chromatic UIGradient** (white → accent → white at 97-92% transparency, 35° rotation) — refraction feel
+- **Circular icon disk** (32pt, accent color, gradient 145°) — NOT a left border
+- **Type color drives the GLOW, not a text label** (cyan / emerald / gold / slate / red)
+- **Progress bar at bottom** (1.5pt, accent color, tweens to 0 over duration) — shows time remaining
+- **Pulse the glow** (1.6s sine wave, transparency 0.88 ↔ 0.78) — neon "breathing"
+- **No type label** — the icon's color + glow color tells you the type
+
+**Reference:** iOS 26 / macOS Sequoia 2025 liquid glass notifications + cyberpunk HUD neon edges. Not Material You, not Bootstrap, not Material 3.
+
+---
+
+### Top 5 bugs to remember (v1.4.1)
+
+1. **B001** — Icon doesn't appear unless `DisplayOrder=9999999` + `ZIndexBehavior=Global`.
+2. **B002** — Never fail silently. Any `pcall` must call `showBootError(err)`.
+3. **B003/B004** — Fly/Teleport need InflateBalloon + PreSimulation + GroundHit heartbeat.
+4. **B005/B019** — No `continue` keyword in Lua 5.1. Use `lua5.4` for syntax checks.
+5. **B029** — **NEW**: Never tween FROM a visibility property. Always start visible. Animation is a bonus, not a requirement.
+
+---
+
+**Build status:** v1.4.1 — 31 modules, 202 KB single-file, 5601 lines. All 35 source files pass Lua 5.4 syntax check.

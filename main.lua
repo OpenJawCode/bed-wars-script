@@ -518,9 +518,9 @@ if getgenv then
     print("[bw] === Script Status ===")
     print("[bw] Registry size: " .. tostring(#(function() local c = 0 for _ in pairs(BW) do c = c + 1 end return c end)()))
     local modules = { "Logger", "Theme", "Tween", "Dragger", "Input",
-                      "Anim", "Icons", "Library", "Config", "PlaceId",
-                      "Services", "Remotes", "GameWksp", "Killaura",
-                      "Reach", "Aimbot", "Fly", "Speed", "Noclip",
+                      "Anim", "Icons", "Toast", "Rotation", "Library",
+                      "Config", "PlaceId", "Services", "Remotes", "GameWksp",
+                      "Killaura", "Reach", "Aimbot", "Fly", "Speed", "Noclip",
                       "Magnet", "Generator", "BedAura", "Shop",
                       "AntiAFK", "AutoRejoin", "Spy", "ESP" }
     for _, name in ipairs(modules) do

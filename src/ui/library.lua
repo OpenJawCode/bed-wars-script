@@ -233,27 +233,18 @@ local function createFab(screengui, openMenu, accentColor)
   outer.Transparency = 0.78
   outer.Parent = fab
 
-  -- BONUS animation: slide up from below + fade in (NOT size 0→56)
-  -- If this tween fails, the FAB is still visible at full size.
-  local finalY = -Theme.Touch.FABMargin - 32
-  fab.Position = UDim2.new(1, -Theme.Touch.FABMargin, 1, finalY + 80)  -- 80pt below final
-  fab.BackgroundTransparency = 1  -- start invisible for fade
-  fab.TextTransparency = 1
-
-  TweenService:Create(fab,
-    TweenInfo.new(0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-    {
-      Position = UDim2.new(1, -Theme.Touch.FABMargin, 1, finalY),
-      BackgroundTransparency = 0,
-      TextTransparency = 0,
-    }
-  ):Play()
-
-  -- Pulse the bloom strokes
+  -- Pulse the bloom strokes (animations can fail safely)
   pcall(function() Anim.pulseGlow(inner, Theme.Motion.Glow, accent) end)
   task.delay(0.6, function()
     pcall(function() Anim.pulseGlow(outer, Theme.Motion.Glow * 1.3, accent) end)
   end)
+
+  -- v1.4.1: REMOVED the "start invisible + tween to visible" pattern.
+  -- B031: setting fab.BackgroundTransparency = 1 right after setting
+  -- to 0 meant if the tween failed, FAB was fully transparent = invisible.
+  -- Now: FAB is in its FINAL state (full size, correct position,
+  -- visible). The animation was a "nice to have" but kept breaking.
+  -- The FAB is GUARANTEED visible from the moment it's created.
 
   -- Tap to open menu
   Input.onTap(fab, function()
@@ -615,23 +606,39 @@ function Library:CreateWindow(settings)
     if visible then
       backdrop.Visible = true
       win.Visible = true
-      -- v1.4: Set FULL SIZE immediately (don't start at 0 — same bug as FAB).
-      -- Animate with position offset + transparency instead.
+      -- v1.4.1: CRITICAL — set FINAL state first (visible at full size
+      -- in correct position). Then apply animation as bonus.
+      -- B030: previously set BackgroundTransparency = 1 here, which
+      -- meant if TweenService failed (some executors), the window was
+      -- fully transparent = INVISIBLE. Now: window is ALWAYS visible.
       win.Size = UDim2.fromOffset(winW, winH)
-      win.Position = UDim2.fromOffset(winX, winY + 60)  -- 60pt below final (slide up)
-      win.BackgroundTransparency = 1  -- start invisible
+      win.Position = UDim2.fromOffset(winX, winY)  -- FINAL position immediately
+      win.BackgroundTransparency = Theme.Alpha.GlassPanel  -- FINAL alpha immediately (visible)
 
-      -- Backdrop fade in
+      -- Backdrop fade in (safe — backdrop was 0 alpha anyway, no risk)
       TweenService:Create(backdrop,
         TweenInfo.new(Theme.Motion.Backdrop, Theme.Easing.Backdrop, Enum.EasingDirection.Out),
         { BackgroundTransparency = Theme.Alpha.Backdrop }
       ):Play()
 
-      -- Window: slide up + fade in (ease-in-out per user request)
-      TweenService:Create(win,
-        TweenInfo.new(Theme.Motion.Open, Theme.Easing.Open, Enum.EasingDirection.Out),
-        { Position = UDim2.fromOffset(winX, winY), BackgroundTransparency = Theme.Alpha.GlassPanel }
-      ):Play()
+      -- BONUS animation: if tween works, slide up from 60pt below.
+      -- If tween fails, window is still visible at final position.
+      -- We use pcall to catch any tween failure silently — the window
+      -- is already visible, so a failed animation is harmless.
+      pcall(function()
+        win.Position = UDim2.fromOffset(winX, winY + 60)
+        local tween = TweenService:Create(win,
+          TweenInfo.new(Theme.Motion.Open, Theme.Easing.Open, Enum.EasingDirection.Out),
+          { Position = UDim2.fromOffset(winX, winY) }
+        )
+        tween:Play()
+        -- Safety: if tween doesn't finish, force final position
+        task.delay(Theme.Motion.Open + 0.05, function()
+          if win and win.Parent then
+            win.Position = UDim2.fromOffset(winX, winY)
+          end
+        end)
+      end)
       -- Build status bar after window has size
       task.defer(function()
         if win.AbsoluteSize.X > 100 and not win:FindFirstChild("StatusBar") then

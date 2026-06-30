@@ -1,18 +1,16 @@
 -- src/features/generator.lua
 -- Auto-collect from generators. Same as Magnet but with a smaller radius
--- (default 30 studs) and a longer spawn guard (3s) — so you walk near a
+-- (default 30 studs) + a 3-second spawn guard — so you walk near a
 -- generator and it auto-collects without being too aggressive.
 --
 -- Bedwars generators spawn ItemDrop parts tagged 'ItemDrop'. We reuse the
 -- VapeV4 PickupRange pattern at 10Hz.
 
-
-local _BW = (getgenv and getgenv()._BW) or _G._BW
-local Services   = _BW.Services
-local GameWksp   = _BW.GameWksp
-local Remotes     = _BW.Remotes
-local Logger      = _BW.Logger
-local PlaceId     = _BW.PlaceId
+local Services   = require(script.Parent.Parent.services)
+local GameWksp   = require(script.Parent.Parent.game.workspace)
+local Remotes     = require(script.Parent.Parent.game.remotes)
+local Logger      = require(script.Parent.Parent.util.logger)
+local PlaceId     = require(script.Parent.Parent.game.placeid)
 
 local Generator = {
   enabled  = false,
@@ -35,16 +33,16 @@ function Generator._loop()
       for _, drop in ipairs(drops) do
         -- 3-second spawn guard (be anti-cheat friendly)
         local dropTime = drop:GetAttribute("ClientDropTime")
-        if dropTime and (tick() - dropTime) < 3 then goto __cont_37_0 end
-
-        local dist = (drop.Position - localPos).Magnitude
-        if dist > Generator.radius then goto __cont_40_1 end
-
-        task.spawn(function()
-          Remotes.call("PickupItem", { itemDrop = drop })
-        end)
-        ::__cont_37_0::
-        ::__cont_40_1::
+        if dropTime and (tick() - dropTime) < 3 then
+          -- Skip this drop
+        else
+          local dist = (drop.Position - localPos).Magnitude
+          if dist <= Generator.radius then
+            task.spawn(function()
+              Remotes.call("PickupItem", { itemDrop = drop })
+            end)
+          end
+        end
       end
     end)
     task.wait(0.1)  -- 10Hz

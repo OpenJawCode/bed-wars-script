@@ -13,13 +13,11 @@
 --
 -- Loop rate: 5Hz (every 0.2s) to avoid spamming the server.
 
-
-local _BW = (getgenv and getgenv()._BW) or _G._BW
-local Services   = _BW.Services
-local GameWksp   = _BW.GameWksp
-local Remotes     = _BW.Remotes
-local Logger      = _BW.Logger
-local PlaceId     = _BW.PlaceId
+local Services   = require(script.Parent.Parent.services)
+local GameWksp   = require(script.Parent.Parent.game.workspace)
+local Remotes     = require(script.Parent.Parent.game.remotes)
+local Logger      = require(script.Parent.Parent.util.logger)
+local PlaceId     = require(script.Parent.Parent.game.placeid)
 
 local Magnet = {
   enabled  = false,
@@ -60,21 +58,26 @@ function Magnet._loop()
         local dropTime = drop:GetAttribute("ClientDropTime")
         if dropTime and (tick() - dropTime) < 2 then
           -- still collect, but only if very close
-          if (drop.Position - localPos).Magnitude > 10 then continue end
+          if (drop.Position - localPos).Magnitude > 10 then
+            -- skip this drop
+          else
+            if isNetworkOwner(drop) then
+              drop.CFrame = CFrame.new(targetPos)
+            end
+            task.spawn(function()
+              Remotes.call("PickupItem", { itemDrop = drop })
+            end)
+          end
+        else
+          if (drop.Position - localPos).Magnitude <= Magnet.radius then
+            if isNetworkOwner(drop) then
+              drop.CFrame = CFrame.new(targetPos)
+            end
+            task.spawn(function()
+              Remotes.call("PickupItem", { itemDrop = drop })
+            end)
+          end
         end
-
-        local dist = (drop.Position - localPos).Magnitude
-        if dist > Magnet.radius then continue end
-
-        -- TP the drop to our feet if we're the network owner
-        if isNetworkOwner(drop) then
-          drop.CFrame = CFrame.new(targetPos)
-        end
-
-        -- Fire the pickup remote
-        task.spawn(function()
-          Remotes.call("PickupItem", { itemDrop = drop })
-        end)
       end
     end)
     task.wait(0.2)  -- 5Hz

@@ -415,8 +415,69 @@ local function boot()
   return Window
 end
 
--- Run the boot
+-- ─── Boot entry point with visible error handling ────────────────────────
+-- Install a splash FIRST (so the user sees feedback even if boot is slow).
+-- If boot errors, show a visible BOOT FAILED overlay (so it's not silent).
+local function showBootError(errMsg)
+  -- Inline minimal error overlay (no dependencies, must work even if
+  -- modules failed to load).
+  local ok_p, parent = pcall(function()
+    if gethui then return gethui() end
+    return game:GetService("CoreGui")
+  end)
+  if not ok_p then return end
+
+  local gui = Instance.new("ScreenGui")
+  gui.Name = "BWBootError"
+  gui.ResetOnSpawn = false
+  gui.DisplayOrder = 99999
+  gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+  gui.Parent = parent
+
+  local bg = Instance.new("Frame")
+  bg.Parent = gui
+  bg.Size = UDim2.new(1, -32, 0, 0)
+  bg.Position = UDim2.new(0, 16, 0.5, 0)
+  bg.AnchorPoint = Vector2.new(0, 0.5)
+  bg.BackgroundColor3 = Color3.fromRGB(20, 8, 8)
+  bg.AutomaticSize = Enum.AutomaticSize.Y
+  bg.BorderSizePixel = 0
+  bg.ZIndex = 100
+  local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 12); c.Parent = bg
+  local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(239, 68, 68); s.Thickness = 1.5; s.Parent = bg
+
+  local hdr = Instance.new("TextLabel")
+  hdr.Parent = bg
+  hdr.Size = UDim2.new(1, -16, 0, 40)
+  hdr.Position = UDim2.new(0, 8, 0, 0)
+  hdr.BackgroundTransparency = 1
+  hdr.Text = "  ⚠  BOOT FAILED"
+  hdr.TextColor3 = Color3.fromRGB(255, 255, 255)
+  hdr.Font = Enum.Font.GothamBlack
+  hdr.TextSize = 14
+  hdr.TextXAlignment = Enum.TextXAlignment.Left
+  hdr.TextYAlignment = Enum.TextYAlignment.Center
+  hdr.ZIndex = 101
+
+  local body = Instance.new("TextLabel")
+  body.Parent = bg
+  body.Size = UDim2.new(1, -24, 0, 0)
+  body.Position = UDim2.new(0, 12, 0, 48)
+  body.AutomaticSize = Enum.AutomaticSize.Y
+  body.Text = tostring(errMsg or "Unknown error")
+  body.TextColor3 = Color3.fromRGB(255, 200, 200)
+  body.Font = Enum.Font.Code
+  body.TextSize = 11
+  body.TextXAlignment = Enum.TextXAlignment.Left
+  body.TextYAlignment = Enum.TextYAlignment.Top
+  body.TextWrapped = true
+  body.ZIndex = 101
+
+  warn("[bw-script] BOOT FAILED: " .. tostring(errMsg))
+  print("[bw-script] BOOT FAILED: " .. tostring(errMsg))
+end
+
 local ok, err = pcall(boot)
 if not ok then
-  warn("[bw-script] Boot failed: " .. tostring(err))
+  showBootError(err)
 end

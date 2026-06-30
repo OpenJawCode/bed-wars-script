@@ -35,14 +35,16 @@ function Generator._loop()
       for _, drop in ipairs(drops) do
         -- 3-second spawn guard (be anti-cheat friendly)
         local dropTime = drop:GetAttribute("ClientDropTime")
-        if dropTime and (tick() - dropTime) < 3 then continue end
+        if dropTime and (tick() - dropTime) < 3 then goto __cont_37_0 end
 
         local dist = (drop.Position - localPos).Magnitude
-        if dist > Generator.radius then continue end
+        if dist > Generator.radius then goto __cont_40_1 end
 
         task.spawn(function()
           Remotes.call("PickupItem", { itemDrop = drop })
         end)
+        ::__cont_37_0::
+        ::__cont_40_1::
       end
     end)
     task.wait(0.1)  -- 10Hz

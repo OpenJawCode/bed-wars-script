@@ -206,15 +206,15 @@ function ESP._onRenderStepped()
     local beds = GameWksp.getBeds()
     for i, bed in ipairs(beds) do
       local part = bed.PrimaryPart or bed:FindFirstChildWhichIsA("BasePart")
-      if not part then continue end
+      if not part then goto __cont_208_0 end
       local dist = (part.Position - localRoot.Position).Magnitude
-      if dist > ESP.maxDistance then continue end
+      if dist > ESP.maxDistance then goto __cont_210_1 end
 
       if not ESP._bedDrawings[bed] then
         ESP._bedDrawings[bed] = makeSimpleDrawings()
       end
       local d = ESP._bedDrawings[bed]
-      if not d then continue end
+      if not d then goto __cont_216_2 end
 
       local screen, vis = camera:WorldToViewportPoint(part.Position)
       if not vis then
@@ -243,13 +243,13 @@ function ESP._onRenderStepped()
     local drops = GameWksp.getItemDrops()
     for _, drop in ipairs(drops) do
       local dist = (drop.Position - localRoot.Position).Magnitude
-      if dist > ESP.maxDistance then continue end
+      if dist > ESP.maxDistance then goto __cont_245_3 end
 
       if not ESP._itemDrawings[drop] then
         ESP._itemDrawings[drop] = makeSimpleDrawings()
       end
       local d = ESP._itemDrawings[drop]
-      if not d then continue end
+      if not d then goto __cont_251_4 end
 
       local screen, vis = camera:WorldToViewportPoint(drop.Position)
       if not vis then
@@ -264,9 +264,14 @@ function ESP._onRenderStepped()
       d.text.Color = color
       d.text.Transparency = 1
     end
+      ::__cont_245_3::
+      ::__cont_251_4::
   end
 end
 
+      ::__cont_208_0::
+      ::__cont_210_1::
+      ::__cont_216_2::
 -- ─── Mobile-throttled render loop ───────────────────────────────────────────
 -- On mobile (touch), we run at ~30Hz to save battery. Desktop runs full 60Hz.
 function ESP._onRenderThrottled()

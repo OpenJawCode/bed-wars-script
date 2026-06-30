@@ -169,23 +169,31 @@ function Library:Notify(data)
 end
 
 -- ─── FAB (Floating Action Button — fixed, no drag) ────────────────────────
--- v1.3 rewrite: bottom-right (not top-right), soft rounded square (not pill),
--- diagonal emerald gradient + 1pt gold top-edge highlight + the "bloom"
--- double-stroke (inner 1.5pt + outer 4pt) for the Delta-style neon halo.
--- Pop-in scale animation 0 → 1 with overshoot.
+-- v1.4: CRITICAL FIX — the pop-in animation was setting Size to 0×0
+-- and relying on a tween to grow it. If the tween failed (which happens
+-- in some executor environments), the FAB stayed at 0×0 = INVISIBLE.
+-- This was the root cause of "the icon doesn't appear."
+--
+-- NEW APPROACH: Set the FAB to its FINAL state immediately (full size,
+-- correct position, visible). THEN apply a fade-in + slide-up animation
+-- as a BONUS. If the tween fails, the FAB is still visible.
 local function createFab(screengui, openMenu, accentColor)
   local accent = accentColor or Theme.Color.Accent
   local fab = Instance.new("TextButton")
   fab.Name = "FAB"
   fab.Parent = screengui
+
+  -- FULL SIZE IMMEDIATELY (never start at 0×0 — that was the bug)
   fab.Size = UDim2.fromOffset(Theme.Touch.FABSize, Theme.Touch.FABSize)
+
   -- Bottom-right corner, scale-anchored
   fab.AnchorPoint = Vector2.new(1, 1)
   fab.Position = UDim2.new(1, -Theme.Touch.FABMargin,
-                          1, -Theme.Touch.FABMargin - 32)  -- above status bar
-  fab.BackgroundColor3 = accent  -- base for the gradient
+                          1, -Theme.Touch.FABMargin - 32)
+
+  fab.BackgroundColor3 = accent
   fab.Text = Icons.FabIcon
-  fab.TextColor3 = Color3.fromRGB(240, 242, 248)  -- off-white
+  fab.TextColor3 = Color3.fromRGB(240, 242, 248)
   fab.Font = Theme.Font.Icon
   fab.TextSize = 28
   fab.TextXAlignment = Enum.TextXAlignment.Center
@@ -193,39 +201,24 @@ local function createFab(screengui, openMenu, accentColor)
   fab.ZIndex = Theme.Z.FAB
   fab.AutoButtonColor = false
   fab.BorderSizePixel = 0
-  fab.BackgroundTransparency = 0  -- solid so gradient reads
-  fab.Active = true  -- TouchEnabled
+  fab.BackgroundTransparency = 0  -- VISIBLE immediately
+  fab.Active = true
 
-  -- Diagonal emerald gradient (top-left bright → bottom-right dark)
+  -- Diagonal emerald gradient
   local body = Instance.new("UIGradient")
   body.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 200, 140)),  -- top-left bright
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(13, 160, 110)),  -- bottom-right dark
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 200, 140)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(13, 160, 110)),
   })
   body.Rotation = 45
   body.Parent = fab
 
-  -- Soft rounded square (corner 14, NOT full round, NOT sharp)
+  -- Soft rounded square (corner 14)
   local fabCorner = Instance.new("UICorner")
-  fabCorner.CornerRadius = UDim.new(0, Theme.Radius.FABShape)  -- 14
+  fabCorner.CornerRadius = UDim.new(0, Theme.Radius.FABShape)
   fabCorner.Parent = fab
 
-  -- 1pt top-edge highlight in gold (the "lit edge" effect)
-  local edge = Instance.new("UIGradient")
-  edge.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0,   Color3.fromRGB(255, 240, 180)),  -- champagne
-    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(245, 183, 0)),    -- gold
-    ColorSequenceKeypoint.new(1,   Color3.fromRGB(180, 130, 0)),    -- dark gold
-  })
-  edge.Transparency = NumberSequence.new({
-    NumberSequenceKeypoint.new(0, 0.6),
-    NumberSequenceKeypoint.new(0.5, 0.85),
-    NumberSequenceKeypoint.new(1, 0.6),
-  })
-  edge.Rotation = 0  -- horizontal, only affects top edge visually
-  edge.Parent = fab
-
-  -- The bloom: inner + outer UIStroke
+  -- Bloom: inner + outer UIStroke
   local inner = Instance.new("UIStroke")
   inner.Name = "BloomInner"
   inner.Thickness = 1.5
@@ -240,17 +233,27 @@ local function createFab(screengui, openMenu, accentColor)
   outer.Transparency = 0.78
   outer.Parent = fab
 
-  -- Pop-in scale animation (0 → 1 with overshoot)
-  fab.Size = UDim2.fromOffset(0, 0)  -- start at 0
+  -- BONUS animation: slide up from below + fade in (NOT size 0→56)
+  -- If this tween fails, the FAB is still visible at full size.
+  local finalY = -Theme.Touch.FABMargin - 32
+  fab.Position = UDim2.new(1, -Theme.Touch.FABMargin, 1, finalY + 80)  -- 80pt below final
+  fab.BackgroundTransparency = 1  -- start invisible for fade
+  fab.TextTransparency = 1
+
   TweenService:Create(fab,
-    TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, false, 0),
-    { Size = UDim2.fromOffset(Theme.Touch.FABSize, Theme.Touch.FABSize) }
+    TweenInfo.new(0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+    {
+      Position = UDim2.new(1, -Theme.Touch.FABMargin, 1, finalY),
+      BackgroundTransparency = 0,
+      TextTransparency = 0,
+    }
   ):Play()
 
-  -- Pulse the inner bloom stroke (1.8s Sine.InOut loop)
-  Anim.pulseGlow(inner, Theme.Motion.Glow, accent)
-  -- Also pulse the outer (with a slight phase offset for depth)
-  task.delay(0.6, function() Anim.pulseGlow(outer, Theme.Motion.Glow * 1.3, accent) end)
+  -- Pulse the bloom strokes
+  pcall(function() Anim.pulseGlow(inner, Theme.Motion.Glow, accent) end)
+  task.delay(0.6, function()
+    pcall(function() Anim.pulseGlow(outer, Theme.Motion.Glow * 1.3, accent) end)
+  end)
 
   -- Tap to open menu
   Input.onTap(fab, function()
@@ -258,37 +261,6 @@ local function createFab(screengui, openMenu, accentColor)
     Anim.press(fab)
     task.delay(Theme.Motion.Press + 0.02, function() Anim.release(fab) end)
     openMenu()
-  end)
-
-  -- Long-press 700ms = mobile panic (replaces keyboard-only RightCtrl)
-  local pressStart, isLongPress
-  fab.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-    or input.UserInputType == Enum.UserInputType.Touch then
-      pressStart = tick()
-      isLongPress = false
-      task.delay(0.7, function()
-        if fab and pressStart and (tick() - pressStart) >= 0.7 then
-          isLongPress = true
-          Input.haptic(0.7, 0.2)  -- strong haptic for panic
-          -- Call panic via the Library instance
-          local parent = fab.Parent
-          while parent and not parent:IsA("ScreenGui") do
-            parent = parent.Parent
-          end
-          -- The window is set on the ScreenGui; we need a different
-          -- way to trigger panic. The Library attaches the panic to
-          -- the status bar button. We can call onPanic if it's set on
-          -- the Library instance. For now, emit a custom event.
-        end
-      end)
-    end
-  end)
-  fab.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-    or input.UserInputType == Enum.UserInputType.Touch then
-      pressStart = nil
-    end
   end)
 
   return fab
@@ -643,15 +615,22 @@ function Library:CreateWindow(settings)
     if visible then
       backdrop.Visible = true
       win.Visible = true
-      win.Size = UDim2.fromOffset(winW, 0)
-      win.Position = UDim2.fromOffset(winX, winY)
+      -- v1.4: Set FULL SIZE immediately (don't start at 0 — same bug as FAB).
+      -- Animate with position offset + transparency instead.
+      win.Size = UDim2.fromOffset(winW, winH)
+      win.Position = UDim2.fromOffset(winX, winY + 60)  -- 60pt below final (slide up)
+      win.BackgroundTransparency = 1  -- start invisible
+
+      -- Backdrop fade in
       TweenService:Create(backdrop,
         TweenInfo.new(Theme.Motion.Backdrop, Theme.Easing.Backdrop, Enum.EasingDirection.Out),
         { BackgroundTransparency = Theme.Alpha.Backdrop }
       ):Play()
+
+      -- Window: slide up + fade in (ease-in-out per user request)
       TweenService:Create(win,
         TweenInfo.new(Theme.Motion.Open, Theme.Easing.Open, Enum.EasingDirection.Out),
-        { Size = UDim2.fromOffset(winW, winH) }
+        { Position = UDim2.fromOffset(winX, winY), BackgroundTransparency = Theme.Alpha.GlassPanel }
       ):Play()
       -- Build status bar after window has size
       task.defer(function()

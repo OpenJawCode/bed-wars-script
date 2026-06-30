@@ -2,7 +2,7 @@
 """Build a single-file version of the Bedwars script."""
 import os, re
 
-BASE = '/home/ubuntu/projects/clients/roblox-scripts/bed-wars-script'
+BASE = '/home/ubuntu/projects/environment/Roblox/bedwars'
 
 module_files = [
     'util/logger.lua',

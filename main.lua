@@ -410,7 +410,7 @@ local function boot()
 
   -- ─── Boot notification (v1.3 — uses Toast module) ───────────────────
   if _BW.Toast and _BW.Toast.success then
-    _BW.Toast.success("Loaded", "Tap ⚡ to open · ⚠ STOP to disable all")
+    _BW.Toast.success("Loaded", "Bedwars Script v1.4 · Tap ⚡ to toggle menu")
   else
     Library:Notify({
       Title = "Bedwars Script",
@@ -419,7 +419,19 @@ local function boot()
     })
   end
 
-  Logger.info("Boot complete — UI ready")
+  -- ─── v1.4: AUTO-OPEN the menu on script execution ──────────────────
+  -- User asked: "what if we everytime or on script execution the menu UI
+  -- panel opens with a ease in out animation + another slide or zoom out
+  -- animation you know. Always ???"
+  -- This ensures the user ALWAYS sees something when the script loads,
+  -- even if the FAB has issues.
+  task.delay(0.5, function()
+    pcall(function()
+      Window:SetVisible(true)
+    end)
+  end)
+
+  Logger.info("Boot complete — UI ready, menu auto-opening")
   return Window
 end
 

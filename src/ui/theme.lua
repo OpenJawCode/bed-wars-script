@@ -82,6 +82,22 @@ Theme.Alpha = {
   Overlay           = 0.40;
 }
 
+-- ─── Gradients (v1.3 — premium emerald + multi-tone gold) ────────────────
+Theme.Gradient = {
+  -- Emerald: diagonal gradient (top-left bright → bottom-right dark)
+  Emerald = {
+    Top    = Color3.fromRGB(20, 200, 140),    -- bright
+    Bot    = Color3.fromRGB(13, 160, 110),    -- dark
+    Angle  = 45,
+  },
+  -- Gold: multi-stop (champagne → standard → dark)
+  Gold = {
+    Light = Color3.fromRGB(255, 240, 180),    -- champagne
+    Mid   = Color3.fromRGB(245, 183, 0),      -- standard gold
+    Dark  = Color3.fromRGB(180, 130, 0),      -- dark gold
+  },
+}
+
 -- ─── Typography ────────────────────────────────────────────────────────────
 Theme.Font = {
   Display   = Enum.Font.GothamBlack;
@@ -110,12 +126,13 @@ Theme.Size = {
 
 -- ─── Radii (rounded everything) ────────────────────────────────────────────
 Theme.Radius = {
-  Pill    = 9999;
-  Card    = 12;
-  Input   = 8;
-  Toggle  = 9999;
-  Small   = 6;
-  Bar     = 3;
+  Pill       = 9999;   -- buttons, switches (full round)
+  Card       = 12;     -- cards, panels
+  Input      = 8;      -- text inputs, keybinds, dropdowns
+  Toggle     = 9999;   -- iOS-style switch
+  Small      = 6;      -- subtle rounding
+  Bar        = 3;      -- thin bars
+  FABShape   = 14;     -- v1.3: soft rounded square (NOT pill, NOT full round)
 }
 
 -- ─── Spacing (8pt grid) ────────────────────────────────────────────────────

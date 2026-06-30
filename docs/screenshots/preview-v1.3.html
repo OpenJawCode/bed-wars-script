@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Bedwars Script v1.3 — Self-Test (Icon Fix)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 393px;
+    height: 852px;
+    font-family: "Gotham", "Inter", system-ui, -apple-system, sans-serif;
+    background: #0a0a0a;
+    color: #f0f2f8;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ═══ Roblox main menu (background) ═══ */
+  .game-bg {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #f5b700 0%, #c07a3a 50%, #8a5a2a 100%);
+    z-index: 0;
+  }
+  .game-bg::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 30% 50%, rgba(0,0,0,0.2), transparent 60%);
+  }
+
+  .bp-icon {
+    position: absolute;
+    left: 20px;
+    top: 360px;
+    width: 90px;
+    height: 110px;
+    background: linear-gradient(135deg, #f5b700, #c07a3a);
+    border: 3px solid #6a4520;
+    border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: white; font-weight: 900; font-size: 11px; text-align: center; line-height: 1.2;
+  }
+  .bp-icon::before { content: "👑"; font-size: 38px; margin-bottom: 4px; }
+
+  .missions-icon {
+    position: absolute; left: 124px; top: 360px;
+    width: 90px; height: 110px;
+    background: #d0b890; border: 3px solid #8a7458; border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #4a3520; font-weight: 900; font-size: 11px; text-align: center;
+  }
+  .missions-icon::before { content: "📜"; font-size: 38px; margin-bottom: 4px; }
+
+  .locker-icon, .clan-icon, .store-icon {
+    position: absolute; width: 64px; height: 80px;
+    background: #5a4a8a; border: 2px solid #4a3a7a; border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: white; font-weight: 900; font-size: 9px; text-align: center;
+  }
+  .locker-icon { left: 22px;  top: 510px; }
+  .clan-icon   { left: 96px;  top: 510px; }
+  .store-icon  { left: 170px; top: 510px; }
+  .locker-icon::before { content: "🪟"; font-size: 28px; }
+  .clan-icon::before   { content: "🛡"; font-size: 28px; }
+  .store-icon::before  { content: "🎁"; font-size: 28px; }
+
+  .play-btn {
+    position: absolute; right: 90px; bottom: 90px;
+    padding: 14px 40px; background: #4ade80; color: white;
+    font-size: 16px; font-weight: 900; border-radius: 8px; border: 2px solid #16a34a;
+  }
+  .party-btn {
+    position: absolute; right: 235px; bottom: 90px;
+    padding: 14px 24px; background: #5a4a8a; color: white;
+    font-size: 13px; font-weight: 700; border-radius: 8px;
+  }
+  .currency-bar {
+    position: absolute; top: 16px; left: 16px;
+    background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 14px;
+    color: #fbbf24; font-weight: 700; font-size: 12px;
+  }
+
+  .hotbar {
+    position: absolute; bottom: 16px; left: 0; right: 0;
+    display: flex; justify-content: center; gap: 4px;
+  }
+  .slot {
+    width: 56px; height: 56px;
+    background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 4px;
+  }
+  .slot.active { border-color: rgba(255,255,255,0.5); }
+
+  /* ═══ v1.3 SELF-TEST UI — proving the icon fix ═══ */
+
+  /* FAB ⚡ — BOTTOM-RIGHT, soft rounded square, gradient + bloom */
+  .fab {
+    position: absolute;
+    right: 12px;
+    bottom: 44px;  /* above the hotbar */
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;  /* soft rounded square — NOT pill, NOT full round */
+    background: linear-gradient(45deg, #14C88C 0%, #0DA06E 100%);
+    z-index: 9999999;  /* DisplayOrder */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 900;
+    color: #F0F2F8;
+    box-shadow:
+      0 0 0 1.5px rgba(16, 185, 129, 0.7),    /* inner bloom */
+      0 0 0 4px rgba(16, 185, 129, 0.22),      /* outer bloom */
+      0 4px 12px rgba(0, 0, 0, 0.4);             /* drop shadow */
+    animation: pulseGlow 1.8s ease-in-out infinite, popIn 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) 1 backwards;
+  }
+  @keyframes pulseGlow {
+    0%, 100% {
+      box-shadow:
+        0 0 0 1.5px rgba(16, 185, 129, 0.5),
+        0 0 0 4px rgba(16, 185, 129, 0.15),
+        0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    50% {
+      box-shadow:
+        0 0 0 1.5px rgba(16, 185, 129, 0.85),
+        0 0 0 6px rgba(16, 185, 129, 0.05),
+        0 4px 16px rgba(16, 185, 129, 0.4);
+    }
+  }
+  @keyframes popIn {
+    0%   { transform: scale(0); opacity: 0; }
+    60%  { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* Top-edge gold highlight on the FAB */
+  .fab-edge {
+    position: absolute;
+    right: 12px;
+    bottom: 44px;
+    width: 56px;
+    height: 28px;
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+    background: linear-gradient(90deg,
+      rgba(255, 240, 180, 0.55) 0%,
+      rgba(245, 183, 0, 0.25) 50%,
+      rgba(180, 130, 0, 0.55) 100%);
+    z-index: 9999998;
+    pointer-events: none;
+    mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+  }
+
+  /* Toast notification — top-right */
+  .toast {
+    position: absolute;
+    top: 60px;
+    right: 12px;
+    background: rgba(14, 18, 28, 0.88);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 9999999;
+    width: 280px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    animation: slideInRight 0.28s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  @keyframes slideInRight {
+    0%   { transform: translateX(100%); opacity: 0; }
+    100% { transform: translateX(0);    opacity: 1; }
+  }
+  .toast-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, #14C88C, #0DA06E);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 900; color: #0A0F1A;
+    flex-shrink: 0;
+  }
+  .toast-body { flex: 1; }
+  .toast-title {
+    font-size: 13px; font-weight: 700; color: #10B981;
+    margin-bottom: 2px;
+  }
+  .toast-text {
+    font-size: 11px; color: #C0C8D8; line-height: 1.4;
+  }
+  .toast-text code {
+    background: rgba(0,0,0,0.4); padding: 1px 4px;
+    border-radius: 3px; font-family: "SF Mono", "Code", monospace;
+    color: #10B981;
+  }
+
+  /* "Loaded" full banner toast (Phase 1) */
+  .loaded-banner {
+    position: absolute;
+    top: 60px;
+    left: 12px;
+    right: 12px;
+    background: rgba(14, 18, 28, 0.88);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    border-radius: 12px;
+    padding: 14px 16px;
+    z-index: 9999999;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    animation: slideInTop 0.32s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  @keyframes slideInTop {
+    0%   { transform: translateY(-30px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+  .loaded-banner .icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, #14C88C, #0DA06E);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 900; color: #0A0F1A;
+    flex-shrink: 0;
+  }
+  .loaded-banner .body { flex: 1; }
+  .loaded-banner .title {
+    font-size: 13px; font-weight: 700; color: #10B981;
+    margin-bottom: 4px;
+  }
+  .loaded-banner .text {
+    font-size: 11px; color: #C0C8D8; line-height: 1.4;
+  }
+  .loaded-banner .text code {
+    background: rgba(0,0,0,0.4); padding: 1px 4px;
+    border-radius: 3px; font-family: "SF Mono", "Code", monospace;
+    color: #10B981;
+  }
+
+  /* Annotation: explains what changed */
+  .annotation {
+    position: absolute;
+    z-index: 9999999;
+    color: #F5B700;
+    font-size: 10px;
+    font-weight: 700;
+    background: rgba(245, 183, 0, 0.15);
+    border: 1px solid rgba(245, 183, 0, 0.4);
+    padding: 3px 7px;
+    border-radius: 4px;
+    pointer-events: none;
+    line-height: 1.3;
+    max-width: 200px;
+  }
+</style>
+</head>
+<body>
+  <!-- ═══ Roblox main menu (background) ═══ -->
+  <div class="game-bg"></div>
+  <div class="currency-bar">🪙 350</div>
+  <div class="bp-icon">BATTLE<br>PASS</div>
+  <div class="missions-icon">MISSIONS</div>
+  <div class="locker-icon">LOCKER</div>
+  <div class="clan-icon">CLAN</div>
+  <div class="store-icon">STORE</div>
+  <div class="play-btn">▶ PLAY</div>
+  <div class="party-btn">👥 PARTY</div>
+  <div class="hotbar">
+    <div class="slot active"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+  </div>
+
+  <!-- ═══ v1.3 SELF-TEST — proving the icon fix works ═══ -->
+
+  <!-- Toast (top-right) — the "Loaded" notification -->
+  <div class="toast">
+    <div class="toast-icon">⚡</div>
+    <div class="toast-body">
+      <div class="toast-title">Loaded — Bedwars Script v1.3</div>
+      <div class="toast-text">28 modules · 0 errors</div>
+    </div>
+  </div>
+
+  <!-- FAB ⚡ — BOTTOM-RIGHT, soft rounded square, gradient + bloom -->
+  <div class="fab">⚡</div>
+  <div class="fab-edge"></div>
+
+  <!-- Annotations explaining the fix -->
+  <div class="annotation" style="right: 76px; bottom: 50px;">F1: BOTTOM-RIGHT (was top-right) · soft rounded square (14) · emerald gradient · bloom glow</div>
+  <div class="annotation" style="right: 16px; top: 100px;">F2: TOP-RIGHT toast notification — appears on script load, fades after 1.8s</div>
+  <div class="annotation" style="left: 12px; top: 180px;">F3: VapeV4 pattern applied — DisplayOrder=9999999, ZIndex=Global, IgnoreGuiInset=true. Now visible ABOVE the main menu UI.</div>
+
+  <div style="position: absolute; top: 8px; right: 8px; font-size: 9px; color: #6e788a; font-weight: 600;">v1.3 self-test: portrait 393×852</div>
+</body>
+</html>

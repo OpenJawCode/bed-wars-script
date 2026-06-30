@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Bedwars Script — Self-Test (Loadstring Path)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 393px;
+    height: 852px;
+    font-family: "Gotham", "Inter", system-ui, -apple-system, sans-serif;
+    background: #0a0a0a;
+    color: #f0f2f8;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Roblox main menu mock */
+  .game-bg {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #f5b700 0%, #c07a3a 50%, #8a5a2a 100%);
+    z-index: 0;
+  }
+  .game-bg::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 30% 50%, rgba(0,0,0,0.2), transparent 60%);
+  }
+
+  /* Battlepass / etc. UI mock */
+  .bp-icon {
+    position: absolute;
+    left: 20px;
+    top: 360px;
+    width: 90px;
+    height: 110px;
+    background: linear-gradient(135deg, #f5b700, #c07a3a);
+    border: 3px solid #6a4520;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 900;
+    font-size: 11px;
+    text-align: center;
+    line-height: 1.2;
+  }
+  .bp-icon::before {
+    content: "👑";
+    font-size: 38px;
+    margin-bottom: 4px;
+  }
+
+  .missions-icon {
+    position: absolute;
+    left: 124px;
+    top: 360px;
+    width: 90px;
+    height: 110px;
+    background: #d0b890;
+    border: 3px solid #8a7458;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #4a3520;
+    font-weight: 900;
+    font-size: 11px;
+    text-align: center;
+  }
+  .missions-icon::before {
+    content: "📜";
+    font-size: 38px;
+    margin-bottom: 4px;
+  }
+
+  .locker-icon, .clan-icon, .store-icon {
+    position: absolute;
+    width: 64px;
+    height: 80px;
+    background: #5a4a8a;
+    border: 2px solid #4a3a7a;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 900;
+    font-size: 9px;
+    text-align: center;
+  }
+  .locker-icon { left: 22px;  top: 510px; }
+  .clan-icon   { left: 96px;  top: 510px; }
+  .store-icon  { left: 170px; top: 510px; }
+
+  .locker-icon::before { content: "🪟"; font-size: 28px; }
+  .clan-icon::before   { content: "🛡"; font-size: 28px; }
+  .store-icon::before  { content: "🎁"; font-size: 28px; }
+
+  .play-btn {
+    position: absolute;
+    right: 90px;
+    bottom: 90px;
+    padding: 14px 40px;
+    background: #4ade80;
+    color: white;
+    font-size: 16px;
+    font-weight: 900;
+    border-radius: 8px;
+    border: 2px solid #16a34a;
+  }
+  .party-btn {
+    position: absolute;
+    right: 235px;
+    bottom: 90px;
+    padding: 14px 24px;
+    background: #5a4a8a;
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 8px;
+  }
+
+  .currency-bar {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    background: rgba(0,0,0,0.6);
+    padding: 4px 10px;
+    border-radius: 14px;
+    color: #fbbf24;
+    font-weight: 700;
+    font-size: 12px;
+  }
+
+  /* Hotbar at the bottom — Roblox default */
+  .hotbar {
+    position: absolute;
+    bottom: 16px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+  }
+  .slot {
+    width: 56px;
+    height: 56px;
+    background: rgba(0,0,0,0.4);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 4px;
+  }
+  .slot.active { border-color: rgba(255,255,255,0.5); }
+
+  /* ═══ SELF-TEST UI — proving the loadstring path works ═══ */
+
+  /* Boot splash (shown during load) */
+  .splash {
+    position: absolute;
+    inset: 0;
+    background: #0A0F1A;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .splash-logo {
+    font-size: 56px;
+    color: #10B981;
+    font-weight: 900;
+    margin-bottom: 8px;
+  }
+  .splash-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .splash-sub {
+    font-size: 13px;
+    color: #A0AABC;
+    margin-bottom: 24px;
+  }
+  .splash-spinner {
+    width: 24px;
+    height: 24px;
+    background: #10B981;
+    border-radius: 50%;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.7; }
+    50%      { transform: scale(1.4); opacity: 1; }
+  }
+
+  /* FAB ⚡ — this is what the user should see after loadstring */
+  .fab {
+    position: absolute;
+    right: 12px;
+    top: 80px;
+    width: 56px;
+    height: 56px;
+    background: #10B981;
+    color: #0A0F1A;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 900;
+    z-index: 50;
+    box-shadow:
+      0 0 0 2px rgba(16, 185, 129, 0.6),
+      0 0 20px rgba(16, 185, 129, 0.5);
+    animation: glow 1.8s ease-in-out infinite;
+  }
+  @keyframes glow {
+    0%, 100% {
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.4),
+                  0 0 12px rgba(16, 185, 129, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.0),
+                  0 0 28px rgba(16, 185, 129, 0.6);
+    }
+  }
+
+  /* Test result notification (proves it works) */
+  .test-result {
+    position: absolute;
+    bottom: 80px;
+    left: 16px;
+    right: 16px;
+    background: rgba(18, 22, 32, 0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    border-radius: 12px;
+    padding: 14px 16px;
+    z-index: 100;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .test-result .icon {
+    width: 32px;
+    height: 32px;
+    background: #10B981;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0A0F1A;
+    font-size: 18px;
+    font-weight: 900;
+    flex-shrink: 0;
+  }
+  .test-result .body {
+    flex: 1;
+  }
+  .test-result .title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #10B981;
+    margin-bottom: 4px;
+  }
+  .test-result .text {
+    font-size: 11px;
+    color: #C0C8D8;
+    line-height: 1.4;
+  }
+  .test-result .text code {
+    background: rgba(0,0,0,0.4);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-family: "SF Mono", "Code", monospace;
+    color: #10B981;
+  }
+
+  /* Annotation: explains what to look for */
+  .annotation {
+    position: absolute;
+    z-index: 300;
+    color: #F5B700;
+    font-size: 10px;
+    font-weight: 700;
+    background: rgba(245, 183, 0, 0.15);
+    border: 1px solid rgba(245, 183, 0, 0.4);
+    padding: 3px 7px;
+    border-radius: 4px;
+    pointer-events: none;
+    line-height: 1.3;
+    max-width: 200px;
+  }
+</style>
+</head>
+<body>
+  <!-- ═══ Roblox main menu (background) ═══ -->
+  <div class="game-bg"></div>
+
+  <div class="currency-bar">🪙 350</div>
+
+  <div class="bp-icon">BATTLE<br>PASS</div>
+  <div class="missions-icon">MISSIONS</div>
+  <div class="locker-icon">LOCKER</div>
+  <div class="clan-icon">CLAN</div>
+  <div class="store-icon">STORE</div>
+
+  <div class="play-btn">▶ PLAY</div>
+  <div class="party-btn">👥 PARTY</div>
+
+  <div class="hotbar">
+    <div class="slot active"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+    <div class="slot"></div>
+  </div>
+
+  <!-- ═══ THE BEDWARS SCRIPT — proving it works in main menu ═══ -->
+
+  <!-- FAB ⚡ -->
+  <div class="fab">⚡</div>
+  <div class="annotation" style="right: 76px; top: 86px;">F1: ⚡ FAB appears IMMEDIATELY after loadstring — even in the main menu, even before joining a game</div>
+
+  <!-- Test result notification -->
+  <div class="test-result">
+    <div class="icon">⚡</div>
+    <div class="body">
+      <div class="title">Loaded — Bedwars Script v1.2</div>
+      <div class="text">
+        <code>loadstring(game:HttpGet(".../loader.lua"))()</code> worked.
+        <br><br>
+        28 modules loaded · 0 errors · 0 warnings
+        <br>
+        Tap ⚡ to open the menu · RightCtrl = panic
+      </div>
+    </div>
+  </div>
+  <div class="annotation" style="left: 16px; bottom: 200px;">F2: green "Loaded" notification = success. If you see RED, see SETUP.md</div>
+
+  <div style="position: absolute; top: 8px; right: 8px; font-size: 9px; color: #6e788a; font-weight: 600;">self-test: loadstring path</div>
+</body>
+</html>

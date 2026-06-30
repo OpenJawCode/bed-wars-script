@@ -481,3 +481,43 @@ local ok, err = pcall(boot)
 if not ok then
   showBootError(err)
 end
+
+-- Expose a console helper for debugging
+-- Usage in executor console:
+--   bw.verify()      — show what's loaded, what's missing
+--   bw.fix()         — re-run remote extraction
+--   bw.reload()      — destroy + recreate the UI
+--   bw.panic()       — manually trigger panic
+if getgenv then
+  getgenv().bw = getgenv().bw or {}
+  getgenv().bw.verify = function()
+    local BW = getgenv()._BW
+    if not BW then
+      return print("[bw] No _BW registry. Script never loaded.")
+    end
+    print("[bw] === Script Status ===")
+    print("[bw] Registry size: " .. tostring(#(function() local c = 0 for _ in pairs(BW) do c = c + 1 end return c end)()))
+    local modules = { "Logger", "Theme", "Tween", "Dragger", "Input",
+                      "Anim", "Icons", "Library", "Config", "PlaceId",
+                      "Services", "Remotes", "GameWksp", "Killaura",
+                      "Reach", "Aimbot", "Fly", "Speed", "Noclip",
+                      "Magnet", "Generator", "BedAura", "Shop",
+                      "AntiAFK", "AutoRejoin", "Spy", "ESP" }
+    for _, name in ipairs(modules) do
+      local ok = BW[name] ~= nil
+      print("[bw]   " .. name .. ": " .. (ok and "OK" or "MISSING"))
+    end
+  end
+  getgenv().bw.fix = function()
+    print("[bw] Re-extracting remotes...")
+    if Remotes and Remotes.extractAll then
+      Remotes.extractAll()
+    end
+  end
+  getgenv().bw.panic = function()
+    if Window and Window.onPanic then
+      Window.onPanic()
+    end
+  end
+  print("[bw] Loaded. Run bw.verify() in console to check status.")
+end

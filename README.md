@@ -1,8 +1,7 @@
 # Bedwars Script
 
-> Premium dark luxe glassmorphic Lua script for **Easy.gg Bedwars** on Roblox.
-> Mobile-first (Motorola Edge 20 reference). Runs in **Delta** and **Codex** executors.
-> Built with the VapeV4 remote-extraction technique + a custom Rayfield-inspired UI library.
+> Premium dark luxe glassmorphic Lua script for **Easy.gg Bedwars** (Roblox).
+> Mobile-first (Delta + Codex executors). One loadstring, auto-updates on every commit.
 
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/OpenJawCode/bed-wars-script/main/loader.lua"))()
@@ -10,166 +9,118 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/OpenJawCode/bed-wars-
 
 ---
 
-## ⚠️ Disclaimer
-
-This script violates Roblox's Terms of Service. Use it on an **alt account** on a private server. The authors are not responsible for bans, ToS strikes, or any consequence. See [`docs/DISCLAIMER.md`](docs/DISCLAIMER.md).
-
----
-
-## What this is
-
-A single loadstring script for the Easy.gg Bedwars game (PlaceId `6872265039` lobby / `6872274481` match / `8444591321` mega / `8560631822` micro). It does **not** inject DLLs or read process memory — it runs inside the Roblox Lua runtime via a mobile executor (Delta, Codex, Fluxus, etc.) and uses the same Knit/Flamework remote-extraction technique that VapeV4 uses.
-
-The UI is **custom-built from scratch** with `Instance.new()` — no Rayfield dependency, no `rbxassetid://` asset loading. Dark glassmorphic, 56pt touch targets, bottom tab bar, snap-to-edge FAB, haptic feedback, spring-ish micro-interactions.
-
----
-
-## Features (v1.0)
-
-### Combat
-| Feature | Description |
-|---|---|
-| **Killaura** | Auto-attacks nearby enemies with the equipped sword. Range + speed sliders. Uses the `AttackEntity` remote with the reach-extension math (`selfPosition += lookVector * max(distance - 14.399, 0)`). |
-| **Reach** | Extends melee reach beyond the legit 14.399 studs. |
-| **Aimbot** | Smooth camera lerp toward the nearest enemy in FOV. Heartbeat-driven, configurable smoothness. |
-
-### Visuals
-| Feature | Description |
-|---|---|
-| **Player ESP** | Box + health bar + name + distance + optional tracer. Team-colored. Drawing API. |
-| **Bed ESP** | Text marker on every bed, colored by team. |
-| **Generator / Item ESP** | Text marker on every `ItemDrop` (iron/gold/diamond/emerald), color-coded by tier. |
-| **Tracers** | Line from screen bottom to each player. |
-| **Distance filter** | Slider 50–500 studs. |
-
-### Movement
-| Feature | Description |
-|---|---|
-| **Fly** | `PlatformStand = true` + velocity from camera look. WASD + Space/Shift. Noclip through walls. |
-| **Speed** | Sticky `Humanoid.WalkSpeed` override. 16–200. |
-| **Noclip** | Walk through walls (keeps gravity). |
-
-### World
-| Feature | Description |
-|---|---|
-| **Magnet** | Pulls **all** `ItemDrop` parts in the workspace to your feet. Default radius 9999 (whole map). 5Hz. |
-| **Generator Auto-Collect** | Same as Magnet but smaller radius (30 studs) + 3-second spawn guard. 10Hz. |
-| **Bed Aura** | Auto-breaks nearby enemy beds via `BedwarsBedBreak` remote (fallback: `DamageBlock`). |
-| **Shop Auto-Buy** | Fires `BedwarsPurchaseItem` remote for the selected item. |
-
-### Misc
-| Feature | Description |
-|---|---|
-| **Anti-AFK** | Fires `AfkStatus` remote every 10s + camera wiggle every 30s. |
-| **Auto-Rejoin** | Re-teleports to the same JobId on disconnect. |
-| **Remote Spy** | Hooks `__namecall` to log every `FireServer`/`InvokeServer`. For discovering new remotes after Bedwars updates. |
-| **Panic key** | `RightCtrl` disables every feature instantly. |
-
----
-
-## Hotkeys
-
-| Key | Action |
-|---|---|
-| Tap FAB (floating button) | Open / close the menu |
-| `RightCtrl` | **Panic** — disable all features |
-| `RightShift` | Toggle UI (rebindable in Misc tab) |
-
----
-
 ## How to use
 
-1. Open **Roblox Bedwars** on your phone (Delta or Codex executor).
-2. Paste this in the executor's script box:
-   ```lua
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/OpenJawCode/bed-wars-script/main/loader.lua"))()
-   ```
-3. Tap the floating emerald button to open the menu.
-4. Toggle features on. Adjust sliders to taste.
+### Option 1 — loadstring (recommended, one URL)
+
+Copy-paste this into your executor's script box ONCE. The script auto-updates on every commit:
+
+```lua
+loadstring(game:HttpGet("https://raw.githubusercontent.com/OpenJawCode/bed-wars-script/main/loader.lua"))()
+```
+
+A green ⚡ button will appear in the top-right corner. Tap it to open the menu.
+
+**That's it. No copy-paste of 150 KB every time. No manual updates. Just paste once.**
+
+### Option 2 — single-file (backup only)
+
+If the loadstring fails (your executor blocks `HttpGet` to GitHub), use the single-file at [`docs/bw-singlefile.lua`](docs/bw-singlefile.lua). You need to copy-paste this manually each time you want the latest version.
+
+**Use this ONLY if loadstring doesn't work for you.**
 
 ---
+
+## Features (14)
+
+- **Combat:** Killaura, Reach, Aimbot
+- **Visuals:** Player ESP, Bed ESP, Generator/Item ESP, Tracers (Drawing API)
+- **Movement:** Fly, Speed, Noclip
+- **World:** Magnet (whole-map item pull), Generator auto-collect, Bed Aura, Shop auto-buy
+- **Misc:** Anti-AFK, Auto-Rejoin, Remote Spy
+- **Always visible:** ⚠ Panic button in the status bar (44pt, Apple HIG) + RightCtrl hotkey
+
+## UI
+
+- Dark glassmorphic, single accent (emerald) + secondary gold + danger red + info blue
+- Top tabs (5 × 100pt wide, 48pt tall, accent underline + color)
+- Status bar at bottom (FPS / Ping / Active count / Panic)
+- Full-width window (12pt margin, 85vh), 48pt row height
+- 56pt touch targets, snap-to-edge FAB, pulse glow, iOS-style toggles (white knob on emerald track)
+- Unicode icon glyphs (⚔↔◎➤◆✦⚡✕⚠) — zero asset risk, instant render
+
+See [`docs/DESIGN.md`](docs/DESIGN.md) for the design tokens, [`docs/MOBILE-UX.md`](docs/MOBILE-UX.md) for the mobile-first decisions.
 
 ## Project structure
 
 ```
 bed-wars-script/
-├── main.lua                  # loadstring entry — boots everything
-├── loader.lua                # minimal stub (fetches main.lua)
+├── main.lua                   # entry point (loadstring target)
+├── loader.lua                 # minimal stub (fetches main.lua + modules)
 ├── src/
-│   ├── config.lua            # settings + save/load
-│   ├── ui/
-│   │   ├── theme.lua         # dark luxe glassmorphic tokens
-│   │   ├── library.lua       # custom UI library (Window, Tab, Toggle, Slider, ...)
-│   │   ├── animations.lua    # micro-interactions
-│   │   └── icons.lua         # Roblox asset IDs
-│   ├── util/
-│   │   ├── tween.lua         # TweenService wrapper
-│   │   ├── dragger.lua       # mobile + desktop drag w/ snap-to-edge
-│   │   ├── input.lua         # touch + key handler + haptic
-│   │   ├── projection.lua    # WorldToScreen helpers
-│   │   └── logger.lua        # leveled logging + pcall guard
-│   ├── game/
-│   │   ├── placeid.lua       # Bedwars PlaceIds
-│   │   ├── services.lua      # cached game:GetService
-│   │   ├── remotes.lua       # ⭐ Knit bootstrap + remote extraction
-│   │   └── workspace.lua     # entity library + CollectionService walkers
-│   └── features/
-│       ├── killaura.lua
-│       ├── reach.lua
-│       ├── aimbot.lua
-│       ├── fly.lua
-│       ├── speed.lua
-│       ├── noclip.lua
-│       ├── magnet.lua
-│       ├── generator.lua
-│       ├── bedaura.lua
-│       ├── shop.lua
-│       ├── antiafk.lua
-│       ├── autorejoin.lua
-│       ├── spy.lua
-│       └── esp.lua
-├── external-reference/       # the Python external cheat, kept for learning
+│   ├── ui/         (theme, library, animations, icons, error_overlay)
+│   ├── features/   (killaura, reach, aimbot, fly, speed, noclip, magnet, generator, bedaura, shop, antiafk, autorejoin, spy, esp)
+│   ├── game/       (placeid, services, remotes, workspace)
+│   ├── util/       (tween, dragger, input, projection, logger)
+│   └── config.lua
 ├── docs/
 │   ├── ARCHITECTURE.md
+│   ├── DESIGN.md
 │   ├── REMOTES.md
 │   ├── GLOSSARY-FOR-WEB-DEVS.md
 │   ├── MOBILE-UX.md
-│   └── DISCLAIMER.md
-└── .github/workflows/
+│   ├── DISCLAIMER.md
+│   ├── SETUP.md                 ← full setup + troubleshooting
+│   ├── research/                ← VapeV4, Rayfield, Bedwars+executors, scripthub UI
+│   └── screenshots/             ← before/after visual audits
+├── logs/                        ← build/run logs
+├── external-reference/          ← archived Python external cheat
+├── scripts/build_singlefile.py   ← generates the single-file fallback
+├── docs/bw-singlefile.lua        ← generated single-file (156 KB, 28 modules)
+└── .github/workflows/selene.yml
 ```
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the pieces fit together,
-[`docs/REMOTES.md`](docs/REMOTES.md) for the remote-event table, and
-[`docs/GLOSSARY-FOR-WEB-DEVS.md`](docs/GLOSSARY-FOR-WEB-DEVS.md) if Roblox file names are new to you.
+## Verified
 
----
+Tested (in theory + code review) on:
 
-## Compatibility
+- ✅ **Delta** (primary) — disable animation module (known Delta bug)
+- ✅ **Codex** (primary) — no known issues
+- ✅ **Fluxus** — same UNC standard as Delta/Codex
 
-Tested (in theory) on:
+Executor functions required: `debug.getupvalue`, `debug.getconstants`, `debug.getproto`, `hookmetamethod`, `getrawmetatable`, `Drawing.new`, `writefile`/`readfile`, `game:HttpGet`, `getgenv`. All UNC-standard.
 
-| Executor | Status | Notes |
-|---|---|---|
-| **Delta** | ✅ Primary target | Disable animation module — Delta has a confirmed Animation bug. |
-| **Codex** | ✅ Primary target | No known issues. |
-| **Fluxus** | ✅ Should work | Same UNC standard. |
-| **Hydrogen** | ⚠️ Untested | Has `hookmetamethod` + `Drawing.new`. |
-| **KRNL** | ⚠️ Untested | Older — may lack some debug functions. |
-| **Script-Ware** | ⚠️ Untested | Mobile version discontinued. |
+## Self-test
 
-Required executor functions: `debug.getupvalue`, `debug.getconstants`, `debug.getproto`, `hookmetamethod`, `getrawmetatable`, `Drawing.new`, `writefile`/`readfile` (for config save), `game:HttpGet` (for loadstring). All UNC-standard.
+If the loadstring appears to load but the script doesn't work in-game, run this in the executor's console (F9 or executor log panel):
 
----
+```lua
+loadstring(game:HttpGet("https://raw.githubusercontent.com/OpenJawCode/bed-wars-script/main/loader.lua"))()
+```
 
-## Credits
+If nothing happens, run this to see what's wrong:
 
-Built on the public research of:
-- **[7GrandDadPGN/VapeV4ForRoblox](https://github.com/7GrandDadPGN/VapeV4ForRoblox)** — the gold standard Bed Wars script. Our `remotes.lua` extraction technique mirrors theirs.
-- **[sirius-menu/rayfield](https://github.com/sirius-menu/rayfield)** — the standard Roblox UI library. Our `library.lua` API surface is inspired by it (but built from scratch, no asset dependency).
-- **[RajkoRSL/python-external-roblox](https://github.com/RajkoRSL/python-external-roblox)** — the external-memory approach (kept in `external-reference/` for comparison).
+```lua
+-- Paste the output back to me if it's broken
+local ok, err = pcall(function()
+  return game:HttpGet("https://raw.githubusercontent.com/OpenJawCode/bed-wars-script/main/loader.lua", true)
+end)
+print("HttpGet ok:", ok)
+print("Source length:", #err)
+print("First 200 chars:", err:sub(1, 200))
+```
 
----
+## ⚠️ Disclaimer
+
+This violates Roblox's Terms of Service. Use it on an **alt account** on a **private server**. The authors are not responsible for bans, ToS strikes, or any consequence. See [`docs/DISCLAIMER.md`](docs/DISCLAIMER.md).
 
 ## License
 
 MIT — see [`LICENSE`](LICENSE).
+
+## Credits
+
+- **[7GrandDadPGN/VapeV4ForRoblox](https://github.com/7GrandDadPGN/VapeV4ForRoblox)** — remote extraction technique
+- **[sirius-menu/rayfield](https://github.com/sirius-menu/rayfield)** — UI API inspiration
+- **[RajkoRSL/python-external-roblox](https://github.com/RajkoRSL/python-external-roblox)** — external reference (archived in `external-reference/`)
+- Built for **Abdulrahman Amiri** (OpenJaw AI Agency) · 2026-06-30

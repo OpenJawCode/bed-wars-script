@@ -76,6 +76,8 @@ end
 
 -- ─── Tab switch ───────────────────────────────────────────────────────────
 function Anim.tabSwitch(fromTab, toTab)
+  -- Visual audit: label was TabActive (emerald) on tap — created triple-green.
+  -- Now: icon ACCENT, label WHITE (TextPrimary), indicator ACCENT.
   if fromTab and fromTab.indicator then
     TweenService:Create(fromTab.indicator,
       TweenInfo.new(Theme.Motion.Tap, Theme.Easing.Tap, Enum.EasingDirection.Out),
@@ -84,6 +86,12 @@ function Anim.tabSwitch(fromTab, toTab)
   end
   if fromTab and fromTab.icon then
     TweenService:Create(fromTab.icon,
+      TweenInfo.new(Theme.Motion.Tap, Theme.Easing.Tap, Enum.EasingDirection.Out),
+      { TextColor3 = Theme.Color.TabInactive }
+    ):Play()
+  end
+  if fromTab and fromTab.label then
+    TweenService:Create(fromTab.label,
       TweenInfo.new(Theme.Motion.Tap, Theme.Easing.Tap, Enum.EasingDirection.Out),
       { TextColor3 = Theme.Color.TabInactive }
     ):Play()
@@ -98,6 +106,12 @@ function Anim.tabSwitch(fromTab, toTab)
     TweenService:Create(toTab.icon,
       TweenInfo.new(Theme.Motion.Tap, Theme.Easing.Tap, Enum.EasingDirection.Out),
       { TextColor3 = Theme.Color.TabActive }
+    ):Play()
+  end
+  if toTab and toTab.label then
+    TweenService:Create(toTab.label,
+      TweenInfo.new(Theme.Motion.Tap, Theme.Easing.Tap, Enum.EasingDirection.Out),
+      { TextColor3 = Theme.Color.TextPrimary }
     ):Play()
   end
 end

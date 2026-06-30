@@ -245,7 +245,9 @@ local function createStatusBar(parent, onPanic, viewportWidth)
   panicBtn.Position = UDim2.new(1, -panicWidth - 8, 0.5, -22)
   panicBtn.BackgroundColor3 = Theme.Color.Danger
   panicBtn.BackgroundTransparency = 0.2
-  panicBtn.Text = "⚠ PANIC"
+  -- Visual audit: "⚠ PANIC" relied on Unicode that varies by Roblox client.
+  -- "STOP" is word-only — reliable across all clients. Red bg = danger signal.
+  panicBtn.Text = "STOP"
   panicBtn.TextColor3 = Theme.Color.TextPrimary
   panicBtn.Font = Theme.Font.Heading
   panicBtn.TextSize = 11
@@ -341,14 +343,18 @@ function Library:CreateWindow(settings)
   logoBtn.BackgroundTransparency = 1
   logoBtn.Size = UDim2.new(0, Theme.Touch.HeaderHeight, 1, 0)
   logoBtn.Position = UDim2.new(0, 0, 0, 0)
-  logoBtn.Text = Icons.FabIcon
+  -- Visual audit: was Icons.FabIcon (⚡) — duplicates the FAB icon visually.
+  -- Changed to ✦ (sparkle) — different glyph, no user confusion.
+  logoBtn.Text = "✦"
   logoBtn.TextColor3 = Theme.Color.Accent
   logoBtn.Font = Theme.Font.Icon
   logoBtn.TextSize = 22
   logoBtn.AutoButtonColor = false
   logoBtn.ZIndex = Theme.Z.WindowContent + 1
 
-  local title = makeLabel(header, settings.Name or "BEDWARS", {
+  -- Visual audit: was "BEDWARS" (all-caps) — reads aggressive. Title case "Bedwars"
+  -- matches jensen-vvs / grannsjovvs brand voice.
+  local title = makeLabel(header, settings.Name or "Bedwars", {
     position = UDim2.new(0, Theme.Touch.HeaderHeight + Theme.Space.SM, 0, 0),
     font = Theme.Font.Heading, textSize = Theme.Size.Title,
     color = Theme.Color.TextPrimary,
@@ -370,7 +376,9 @@ function Library:CreateWindow(settings)
   searchIcon.BackgroundTransparency = 1
   searchIcon.Size = UDim2.new(0, Theme.Touch.SearchHeight, 1, 0)
   searchIcon.Position = UDim2.new(0, Theme.Space.SM, 0, 0)
-  searchIcon.Text = Icons.Unicode.Search
+  -- Visual audit: was Icons.Unicode.Search (⌕) — renders inconsistently.
+  -- Removed the icon — text-only placeholder is more reliable.
+  searchIcon.Text = ""
   searchIcon.TextColor3 = Theme.Color.TextMuted
   searchIcon.Font = Theme.Font.IconSmall
   searchIcon.TextSize = 14
@@ -659,8 +667,10 @@ function Library:CreateTab(name, iconSpec)
 
   if #self.tabs == 0 then
     self.pageLayout:JumpTo(page)
+    -- Visual audit: was TabActive (emerald) for both icon and label — created
+    -- triple-green noise. Now: icon ACCENT, label WHITE, indicator ACCENT.
     icon.TextColor3 = Theme.Color.TabActive
-    label.TextColor3 = Theme.Color.TabActive
+    label.TextColor3 = Theme.Color.TextPrimary
     indicator.Visible = true
   end
 
@@ -675,10 +685,12 @@ function Library._createSection(tab, name)
   local section = {}
   section.elements = {}
 
+  -- Visual audit: section title was Accent (emerald) — competed with active tab
+  -- indicator. Now: Gold (secondary) — reads as "section header" not "active state".
   local title = makeLabel(tab.page, name, {
     position = UDim2.new(0, Theme.Space.XS, 0, 0),
     font = Theme.Font.Heading, textSize = Theme.Size.Heading,
-    color = Theme.Color.Accent,
+    color = Theme.Color.Gold,
   })
   title.Size = UDim2.new(1, -Theme.Space.XS * 2, 0, 24)
   title.LayoutOrder = #tab.sections * 1000
@@ -841,7 +853,9 @@ function Library._createSlider(section, opts)
   local track = Instance.new("Frame")
   track.Parent = row
   track.BackgroundColor3 = Theme.Color.SurfaceInset
-  track.Size = UDim2.new(1, -Theme.Space.LG * 2, 0, 6)
+  -- Visual audit: track was 6pt — felt flimsy. 8pt is more substantial,
+  -- feels more premium, easier to tap-target.
+  track.Size = UDim2.new(1, -Theme.Space.LG * 2, 0, 8)
   track.Position = UDim2.new(0, Theme.Space.LG, 0, 34)
   track.BorderSizePixel = 0
   track.ZIndex = Theme.Z.WindowContent

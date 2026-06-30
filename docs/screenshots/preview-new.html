@@ -154,7 +154,9 @@
     font-weight: 900;
   }
   .tab.active {
-    color: #10b981;
+    /* Visual audit: was emerald (triple-green noise). Now white text +
+       emerald icon + emerald underline = clear "active" signal. */
+    color: #f0f2f8;
   }
   .tab.active .tab-icon {
     color: #10b981;
@@ -182,7 +184,9 @@
   .section-title {
     font-size: 15px;
     font-weight: 700;
-    color: #10b981;
+    /* Visual audit: was emerald — competed with active tab. Now gold
+       (secondary heading, like iOS Settings section). */
+    color: #f5b700;
     margin-top: 4px;
     margin-bottom: 2px;
     padding: 0 4px;
@@ -274,9 +278,10 @@
   .slider-row .top { display: flex; align-items: center; }
   .slider-row .row-label { padding: 0; }
   .slider-track {
-    height: 6px;
+    /* Visual audit: was 6px — felt flimsy. 8px is more substantial. */
+    height: 8px;
     background: rgba(14, 18, 26, 0.45);
-    border-radius: 3px;
+    border-radius: 4px;
     position: relative;
     margin-top: 8px;
   }
@@ -404,8 +409,8 @@
   <div class="window">
     <!-- Header -->
     <div class="header">
-      <div class="header-logo">⚡</div>
-      <div class="header-title">BEDWARS</div>
+      <div class="header-logo">✦</div>
+      <div class="header-title">Bedwars</div>
       <div class="header-spacer"></div>
       <div class="search">
         <div class="search-icon">⌕</div>
@@ -511,7 +516,7 @@
         <div class="status-dot"></div>
         <div>3/14 ON</div>
       </div>
-      <div class="panic-btn">⚠ PANIC</div>
+      <div class="panic-btn">STOP</div>
     </div>
   </div>
 

@@ -29,15 +29,12 @@ local Services    = _BW.Services
 local GameWksp    = _BW.GameWksp
 local PlaceId     = _BW.PlaceId
 local Logger      = _BW.Logger
--- Anticheat is loaded via the _BW package registry (set by main.lua)
+-- v1.5: B034 — Anticheat from registry. The require() fallback
+-- below was a landmine: in loadstring context `script` is nil and
+-- `nil.Parent` throws. The single-file version has Anticheat set
+-- by build_singlefile.py at the top of the bundle, so this just
+-- reads from the registry.
 local Anticheat   = _BW.Anticheat
-if not Anticheat then
-  -- Fallback: require directly (when running the single-file version)
-  local ok, mod = pcall(function()
-    return require(script.Parent.Parent.game.bedwars_anticheat)
-  end)
-  if ok then Anticheat = mod end
-end
 
 local Fly = {
   enabled  = false,

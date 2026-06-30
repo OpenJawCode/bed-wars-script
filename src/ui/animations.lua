@@ -4,7 +4,14 @@
 -- Web dev mental model: this is our framer-motion variants.
 
 local TweenService = game:GetService("TweenService")
-local Theme = require(script.Parent.theme)
+-- v1.5: B034 — use registry instead of require(). `script` is nil in
+-- loadstring context, so `require(script.Parent.theme)` throws
+-- "attempt to index nil value" and halts the entire script.
+-- Every other module uses the _BW registry — animations.lua was the
+-- odd one out. The require() pattern is the LANDMINE that prevented
+-- the script from loading in v1.4 and v1.4.1.
+local _BW = (getgenv and getgenv()._BW) or _G._BW
+local Theme = _BW.Theme
 
 local Anim = {}
 

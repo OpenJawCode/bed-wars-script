@@ -71,6 +71,25 @@ for path in module_files:
     full = os.path.join(BASE, 'src', path)
     with open(full) as f:
         src = f.read()
+
+    # v1.5: B034 SAFETY NET — strip `require(script...)` calls only.
+    # Why: in loadstring context, `script` is nil, so
+    # `require(script.Parent.X)` throws "attempt to index nil value"
+    # and halts the entire script. This is the silent killer.
+    #
+    # We do NOT strip legitimate Roblox requires like
+    # `require(replicatedStorage.TS.remotes)` — those need to find
+    # real Roblox Instances and are critical for remote extraction.
+    stripped = []
+    for line in src.split('\n'):
+        # Match `local X = require(script...)` — script is nil in loadstring
+        if re.match(r"^\s*local\s+\w+\s*=\s*require\s*\(\s*script", line):
+            stripped.append('-- [B034] stripped require(script...) call: ' + line.strip())
+            print(f"  [B034] stripped require() in {path}: {line.strip()}")
+        else:
+            stripped.append(line)
+    src = '\n'.join(stripped)
+
     # Remove the `local _BW = ...` line since we already have _BW defined
     src = re.sub(
         r"^local _BW = \(getgenv and getgenv\(\)\._BW\) or _G\._BW\s*\n",

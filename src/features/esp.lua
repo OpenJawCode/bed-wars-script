@@ -15,11 +15,13 @@
 
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local Services  = require(script.Parent.Parent.services)
-local GameWksp  = require(script.Parent.Parent.game.workspace)
-local Theme     = require(script.Parent.ui.theme)
-local Logger    = require(script.Parent.Parent.util.logger)
-local PlaceId   = require(script.Parent.Parent.game.placeid)
+-- v1.5: B034 — use registry instead of require().
+local _BW = (getgenv and getgenv()._BW) or _G._BW
+local Services  = _BW.Services
+local GameWksp  = _BW.GameWksp
+local Theme     = _BW.Theme
+local Logger    = _BW.Logger
+local PlaceId   = _BW.PlaceId
 
 local ESP = {
   enabled     = false,

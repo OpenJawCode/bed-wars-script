@@ -20,11 +20,26 @@ local UserInputService = game:GetService("UserInputService")
 -- can't use `require(script.Parent...)`. Instead, we register every module
 -- in a global table (getgenv()._BW or _G._BW) that modules read from.
 -- This is the dependency injection layer.
+--
+-- v1.5: Phase 4 — DON'T WIPE _BW. The loader already pre-loaded every
+-- module. Wiping forced main.lua to re-fetch all 29 modules via ANOTHER
+-- 29 sequential HttpGet calls, doubling boot time. Now we just ensure
+-- the table exists.
 if getgenv then
-  getgenv()._BW = {}
+  if not getgenv()._BW then getgenv()._BW = {} end
 else
-  _G._BW = {}
+  if not _G._BW then _G._BW = {} end
 end
+
+local _BW = (getgenv and getgenv()._BW) or _G._BW
+
+-- ─── Resolve local paths ────────────────────────────────────────────────────
+-- v1.5: Phase 4 — REMOVED the loadModule() loop. The loader has already
+-- populated _BW with every module. We just need to grab references.
+-- If main.lua is run WITHOUT the loader (e.g., user pastes main.lua
+-- directly), then _BW is empty and we fall back to fetching.
+
+local SOURCE_BASE = "https://raw.githubusercontent.com/OpenJawCode/bed-wars-script/main/src"
 
 local function setPkg(name, module)
   if getgenv then
@@ -35,14 +50,11 @@ local function setPkg(name, module)
   return module
 end
 
--- ─── Resolve local paths ────────────────────────────────────────────────────
--- When loaded via loadstring, `script` is nil. We fetch each module from the
--- GitHub raw URL, execute it, and register it in the package table.
-
-local SOURCE_BASE = "https://raw.githubusercontent.com/OpenJawCode/bed-wars-script/main/src"
-
--- Generic loader: fetches a module, executes it, registers it in _BW, returns it.
+-- Generic loader: only used as fallback if main.lua is run WITHOUT the loader.
 local function loadModule(name, path)
+  -- If the loader already populated _BW, use that
+  if _BW[name] then return _BW[name] end
+
   local url = SOURCE_BASE .. "/" .. path
   local ok, source = pcall(function()
     return game:HttpGet(url, true)
@@ -51,52 +63,61 @@ local function loadModule(name, path)
     warn("[bw-script] Failed to load: " .. path)
     return nil
   end
-  local fn, err = loadstring(source, path)
+  local fn, err = pcall(loadstring, source, path)
   if not fn then
     warn("[bw-script] Parse error in " .. path .. ": " .. tostring(err))
     return nil
   end
-  local mod = fn()
+  local ok2, mod = pcall(fn)
+  if not ok2 then
+    warn("[bw-script] Runtime error in " .. path .. ": " .. tostring(mod))
+    return nil
+  end
   if mod then setPkg(name, mod) end
   return mod
 end
 
--- ─── Load order (dependencies first) ────────────────────────────────────────
--- Each loadModule(NAME, path) registers the module as _BW.NAME for later lookups.
-local Logger      = loadModule("Logger",     "util/logger.lua")
-local Theme       = loadModule("Theme",      "ui/theme.lua")
-local Tween       = loadModule("Tween",      "util/tween.lua")
-local Dragger     = loadModule("Dragger",    "util/dragger.lua")
-local Input       = loadModule("Input",      "util/input.lua")
-local Projection  = loadModule("Projection", "util/projection.lua")
-local Anim        = loadModule("Anim",       "ui/animations.lua")
-local Icons       = loadModule("Icons",      "ui/icons.lua")
-local Toast       = loadModule("Toast",      "ui/toast.lua")
-local Rotation    = loadModule("Rotation",   "ui/rotation.lua")
-local Library     = loadModule("Library",    "ui/library.lua")
-local Config      = loadModule("Config",     "config.lua")
-local PlaceId     = loadModule("PlaceId",    "game/placeid.lua")
-local Services    = loadModule("Services",   "game/services.lua")
-local Remotes     = loadModule("Remotes",    "game/remotes.lua")
-local GameWksp    = loadModule("GameWksp",   "game/workspace.lua")
-local Anticheat  = loadModule("Anticheat",  "game/bedwars_anticheat.lua")
+-- ─── Module resolution (registry first, then fallback fetch) ──────────────
+-- Try to get each module from _BW (set by loader). If missing, fetch it.
+local function resolve(name, path)
+  if _BW[name] then return _BW[name] end
+  return loadModule(name, path)
+end
+
+local Logger      = resolve("Logger",     "util/logger.lua")
+local Theme       = resolve("Theme",      "ui/theme.lua")
+local Tween       = resolve("Tween",      "util/tween.lua")
+local Dragger     = resolve("Dragger",    "util/dragger.lua")
+local Input       = resolve("Input",      "util/input.lua")
+local Projection  = resolve("Projection", "util/projection.lua")
+local Anim        = resolve("Anim",       "ui/animations.lua")
+local Icons       = resolve("Icons",      "ui/icons.lua")
+local Toast       = resolve("Toast",      "ui/toast.lua")
+local Rotation    = resolve("Rotation",   "ui/rotation.lua")
+local Library     = resolve("Library",    "ui/library.lua")
+local Config      = resolve("Config",     "config.lua")
+local PlaceId     = resolve("PlaceId",    "game/placeid.lua")
+local Services    = resolve("Services",   "game/services.lua")
+local Remotes     = resolve("Remotes",    "game/remotes.lua")
+local GameWksp    = resolve("GameWksp",   "game/workspace.lua")
+local Anticheat   = resolve("Anticheat",  "game/bedwars_anticheat.lua")
 if Anticheat and Anticheat.init then Anticheat.init() end
 
 -- Features
-local Killaura    = loadModule("Killaura",   "features/killaura.lua")
-local Reach       = loadModule("Reach",      "features/reach.lua")
-local Aimbot      = loadModule("Aimbot",     "features/aimbot.lua")
-local Fly         = loadModule("Fly",        "features/fly.lua")
-local Speed       = loadModule("Speed",      "features/speed.lua")
-local Noclip      = loadModule("Noclip",     "features/noclip.lua")
-local Magnet      = loadModule("Magnet",     "features/magnet.lua")
-local Generator   = loadModule("Generator",  "features/generator.lua")
-local BedAura     = loadModule("BedAura",    "features/bedaura.lua")
-local Shop        = loadModule("Shop",       "features/shop.lua")
-local AntiAFK     = loadModule("AntiAFK",    "features/antiafk.lua")
-local AutoRejoin  = loadModule("AutoRejoin", "features/autorejoin.lua")
-local Spy         = loadModule("Spy",        "features/spy.lua")
-local ESP         = loadModule("ESP",        "features/esp.lua")
+local Killaura    = resolve("Killaura",   "features/killaura.lua")
+local Reach       = resolve("Reach",      "features/reach.lua")
+local Aimbot      = resolve("Aimbot",     "features/aimbot.lua")
+local Fly         = resolve("Fly",        "features/fly.lua")
+local Speed       = resolve("Speed",      "features/speed.lua")
+local Noclip      = resolve("Noclip",     "features/noclip.lua")
+local Magnet      = resolve("Magnet",     "features/magnet.lua")
+local Generator   = resolve("Generator",  "features/generator.lua")
+local BedAura     = resolve("BedAura",    "features/bedaura.lua")
+local Shop        = resolve("Shop",       "features/shop.lua")
+local AntiAFK     = resolve("AntiAFK",    "features/antiafk.lua")
+local AutoRejoin  = resolve("AutoRejoin", "features/autorejoin.lua")
+local Spy         = resolve("Spy",        "features/spy.lua")
+local ESP         = resolve("ESP",        "features/esp.lua")
 
 -- ─── Boot sequence ──────────────────────────────────────────────────────────
 local function boot()
@@ -504,12 +525,86 @@ end
 
 -- Expose a console helper for debugging
 -- Usage in executor console:
+--   bw.test()        — test which executor functions are available (v1.5)
 --   bw.verify()      — show what's loaded, what's missing
 --   bw.fix()         — re-run remote extraction
 --   bw.reload()      — destroy + recreate the UI
 --   bw.panic()       — manually trigger panic
 if getgenv then
   getgenv().bw = getgenv().bw or {}
+
+  -- v1.5: Phase 7 — bw.test() diagnostic command
+  -- Tests every executor function the script depends on. Prints
+  -- a pass/fail table. Use this if the script doesn't load to
+  -- find out which executor function is missing.
+  getgenv().bw.test = function()
+    local tests = {
+      -- Core boot
+      { name = "getgenv",          test = function() return getgenv and type(getgenv()) == "table" end },
+      { name = "game:HttpGet",     test = function() return game and game.HttpGet and pcall(function() return game:HttpGet("https://raw.githubusercontent.com", true) end) end },
+      { name = "loadstring",       test = function() local f, _ = loadstring("return 1"); return type(f) == "function" end },
+      { name = "task.spawn",       test = function() return task and task.spawn and task.delay end },
+      { name = "pcall",            test = function() local ok = pcall(function() end); return ok end },
+
+      -- UI parent options
+      { name = "gethui",           test = function() return gethui and gethui() ~= nil end },
+      { name = "protectgui",       test = function() return protectgui and protectgui() ~= nil end },
+      { name = "cloneref",         test = function() return cloneref and cloneref(game) ~= nil end },
+      { name = "PlayerGui",        test = function() return game.Players.LocalPlayer and game.Players.LocalPlayer:FindFirstChild("PlayerGui") end },
+
+      -- Drawing API (ESP)
+      { name = "Drawing",          test = function() return Drawing and Drawing.new and Drawing.new("Square") ~= nil end },
+
+      -- File system (config save)
+      { name = "writefile",        test = function() return writefile and pcall(function() writefile("__bw_test", "x") end) end },
+      { name = "readfile",         test = function() return readfile end },
+      { name = "isfile",           test = function() return isfile end },
+      { name = "makefolder",       test = function() return makefolder end },
+
+      -- Spy / anti-cheat bypass
+      { name = "hookmetamethod",   test = function() return hookmetamethod end },
+      { name = "getrawmetatable",  test = function() return getrawmetatable end },
+      { name = "setreadonly",      test = function() return setreadonly end },
+      { name = "getnamecallmethod",test = function() return getnamecallmethod end },
+
+      -- Remote extraction
+      { name = "debug.getupvalue", test = function() return debug and debug.getupvalue end },
+      { name = "debug.getconstants",test= function() return debug and debug.getconstants end },
+      { name = "debug.getproto",   test = function() return debug and debug.getproto end },
+
+      -- Haptic
+      { name = "vibrate",          test = function() return vibrate end },
+
+      -- Misc
+      { name = "isnetworkowner",   test = function() return isnetworkowner end },
+      { name = "setclipboard",     test = function() return setclipboard end },
+    }
+
+    local passed, failed = 0, 0
+    print("═══════════════════════════════════════════════")
+    print("[bw.test] === Executor Function Check ===")
+    print("[bw.test] Total: " .. #tests .. " functions")
+    print("───────────────────────────────────────────────")
+    for _, t in ipairs(tests) do
+      local ok, result = pcall(t.test)
+      if ok and result then
+        print("[bw.test]   ✓ " .. t.name)
+        passed = passed + 1
+      else
+        print("[bw.test]   ✗ " .. t.name .. " — " .. tostring(result))
+        failed = failed + 1
+      end
+    end
+    print("───────────────────────────────────────────────")
+    print(string.format("[bw.test] Result: %d/%d passed, %d failed", passed, #tests, failed))
+    if failed > 0 then
+      print("[bw.test] Missing functions will degrade features but not block boot.")
+    else
+      print("[bw.test] All functions present. Script should boot normally.")
+    end
+    print("═══════════════════════════════════════════════")
+  end
+
   getgenv().bw.verify = function()
     local BW = getgenv()._BW
     if not BW then

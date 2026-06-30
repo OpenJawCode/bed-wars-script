@@ -631,7 +631,13 @@ do
   -- Web dev mental model: this is our framer-motion variants.
   
   local TweenService = game:GetService("TweenService")
-  local Theme = require(script.Parent.theme)
+  -- v1.5: B034 — use registry instead of require(). `script` is nil in
+  -- loadstring context, so `require(script.Parent.theme)` throws
+  -- "attempt to index nil value" and halts the entire script.
+  -- Every other module uses the _BW registry — animations.lua was the
+  -- odd one out. The require() pattern is the LANDMINE that prevented
+  -- the script from loading in v1.4 and v1.4.1.
+  local Theme = _BW.Theme
   
   local Anim = {}
   
@@ -3974,15 +3980,12 @@ do
   local GameWksp    = _BW.GameWksp
   local PlaceId     = _BW.PlaceId
   local Logger      = _BW.Logger
-  -- Anticheat is loaded via the _BW package registry (set by main.lua)
+  -- v1.5: B034 — Anticheat from registry. The require() fallback
+  -- below was a landmine: in loadstring context `script` is nil and
+  -- `nil.Parent` throws. The single-file version has Anticheat set
+  -- by build_singlefile.py at the top of the bundle, so this just
+  -- reads from the registry.
   local Anticheat   = _BW.Anticheat
-  if not Anticheat then
-    -- Fallback: require directly (when running the single-file version)
-    local ok, mod = pcall(function()
-      return require(script.Parent.Parent.game.bedwars_anticheat)
-    end)
-    if ok then Anticheat = mod end
-  end
   
   local Fly = {
     enabled  = false,
@@ -4105,11 +4108,9 @@ do
   local GameWksp   = _BW.GameWksp
   local PlaceId    = _BW.PlaceId
   local Logger     = _BW.Logger
+  -- v1.5: B034 — Anticheat from registry. No require() fallback
+  -- (it was a landmine that threw in loadstring context).
   local Anticheat  = _BW.Anticheat
-  if not Anticheat then
-    local ok, mod = pcall(function() return require(script.Parent.Parent.game.bedwars_anticheat) end)
-    if ok then Anticheat = mod end
-  end
   
   local Speed = {
     enabled = false,
@@ -4255,11 +4256,13 @@ do
   --
   -- Loop rate: 5Hz (every 0.2s) to avoid spamming the server.
   
-  local Services   = require(script.Parent.Parent.services)
-  local GameWksp   = require(script.Parent.Parent.game.workspace)
-  local Remotes     = require(script.Parent.Parent.game.remotes)
-  local Logger      = require(script.Parent.Parent.util.logger)
-  local PlaceId     = require(script.Parent.Parent.game.placeid)
+  -- v1.5: B034 — use registry instead of require().
+  local _BW      = (getgenv and getgenv()._BW) or _G._BW
+  local Services  = _BW.Services
+  local GameWksp  = _BW.GameWksp
+  local Remotes    = _BW.Remotes
+  local Logger     = _BW.Logger
+  local PlaceId    = _BW.PlaceId
   
   local Magnet = {
     enabled  = false,
@@ -4355,11 +4358,13 @@ do
   -- Bedwars generators spawn ItemDrop parts tagged 'ItemDrop'. We reuse the
   -- VapeV4 PickupRange pattern at 10Hz.
   
-  local Services   = require(script.Parent.Parent.services)
-  local GameWksp   = require(script.Parent.Parent.game.workspace)
-  local Remotes     = require(script.Parent.Parent.game.remotes)
-  local Logger      = require(script.Parent.Parent.util.logger)
-  local PlaceId     = require(script.Parent.Parent.game.placeid)
+  -- v1.5: B034 — use registry instead of require().
+  local _BW      = (getgenv and getgenv()._BW) or _G._BW
+  local Services  = _BW.Services
+  local GameWksp  = _BW.GameWksp
+  local Remotes    = _BW.Remotes
+  local Logger     = _BW.Logger
+  local PlaceId    = _BW.PlaceId
   
   local Generator = {
     enabled  = false,
@@ -4428,11 +4433,16 @@ do
   -- either call the BedwarsBedBreak remote (via Client:Get) or DamageBlock on
   -- each bed part's position. The remote is cleaner; DamageBlock is the fallback.
   
-  local Services   = require(script.Parent.Parent.services)
-  local GameWksp   = require(script.Parent.Parent.game.workspace)
-  local Remotes     = require(script.Parent.Parent.game.remotes)
-  local Logger      = require(script.Parent.Parent.util.logger)
-  local PlaceId     = require(script.Parent.Parent.game.placeid)
+  -- v1.5: B034 — use registry instead of require(). `script` is nil
+  -- in loadstring context, so all 5 require() calls would throw and
+  -- halt the entire script. Use the _BW registry that the loader
+  -- populates.
+  local _BW      = (getgenv and getgenv()._BW) or _G._BW
+  local Services  = _BW.Services
+  local GameWksp  = _BW.GameWksp
+  local Remotes    = _BW.Remotes
+  local Logger     = _BW.Logger
+  local PlaceId    = _BW.PlaceId
   
   local BedAura = {
     enabled  = false,
@@ -4827,11 +4837,12 @@ do
   
   local RunService = game:GetService("RunService")
   local UserInputService = game:GetService("UserInputService")
-  local Services  = require(script.Parent.Parent.services)
-  local GameWksp  = require(script.Parent.Parent.game.workspace)
-  local Theme     = require(script.Parent.ui.theme)
-  local Logger    = require(script.Parent.Parent.util.logger)
-  local PlaceId   = require(script.Parent.Parent.game.placeid)
+  -- v1.5: B034 — use registry instead of require().
+  local Services  = _BW.Services
+  local GameWksp  = _BW.GameWksp
+  local Theme     = _BW.Theme
+  local Logger    = _BW.Logger
+  local PlaceId   = _BW.PlaceId
   
   local ESP = {
     enabled     = false,
@@ -5134,6 +5145,15 @@ local _ok, _err = pcall(function()
   local UserInputService = game:GetService("UserInputService")
   
   
+  local _BW = (getgenv and getgenv()._BW) or _G._BW
+  
+  -- ─── Resolve local paths ────────────────────────────────────────────────────
+  -- v1.5: Phase 4 — REMOVED the loadModule() loop. The loader has already
+  -- populated _BW with every module. We just need to grab references.
+  -- If main.lua is run WITHOUT the loader (e.g., user pastes main.lua
+  -- directly), then _BW is empty and we fall back to fetching.
+  
+  
   local function setPkg(name, module)
     if getgenv then
       getgenv()._BW[name] = module
@@ -5143,13 +5163,48 @@ local _ok, _err = pcall(function()
     return module
   end
   
-  -- ─── Resolve local paths ────────────────────────────────────────────────────
-  -- When loaded via loadstring, `script` is nil. We fetch each module from the
-  -- GitHub raw URL, execute it, and register it in the package table.
   
+  -- ─── Module resolution (registry first, then fallback fetch) ──────────────
+  -- Try to get each module from _BW (set by loader). If missing, fetch it.
+  local function resolve(name, path)
+    if _BW[name] then return _BW[name] end
+    return loadModule(name, path)
+  end
   
+  local Logger      = resolve("Logger",     "util/logger.lua")
+  local Theme       = resolve("Theme",      "ui/theme.lua")
+  local Tween       = resolve("Tween",      "util/tween.lua")
+  local Dragger     = resolve("Dragger",    "util/dragger.lua")
+  local Input       = resolve("Input",      "util/input.lua")
+  local Projection  = resolve("Projection", "util/projection.lua")
+  local Anim        = resolve("Anim",       "ui/animations.lua")
+  local Icons       = resolve("Icons",      "ui/icons.lua")
+  local Toast       = resolve("Toast",      "ui/toast.lua")
+  local Rotation    = resolve("Rotation",   "ui/rotation.lua")
+  local Library     = resolve("Library",    "ui/library.lua")
+  local Config      = resolve("Config",     "config.lua")
+  local PlaceId     = resolve("PlaceId",    "game/placeid.lua")
+  local Services    = resolve("Services",   "game/services.lua")
+  local Remotes     = resolve("Remotes",    "game/remotes.lua")
+  local GameWksp    = resolve("GameWksp",   "game/workspace.lua")
+  local Anticheat   = resolve("Anticheat",  "game/bedwars_anticheat.lua")
+  if Anticheat and Anticheat.init then Anticheat.init() end
   
-  -- Features loaded inline above (no loadModule needed)
+  -- Features
+  local Killaura    = resolve("Killaura",   "features/killaura.lua")
+  local Reach       = resolve("Reach",      "features/reach.lua")
+  local Aimbot      = resolve("Aimbot",     "features/aimbot.lua")
+  local Fly         = resolve("Fly",        "features/fly.lua")
+  local Speed       = resolve("Speed",      "features/speed.lua")
+  local Noclip      = resolve("Noclip",     "features/noclip.lua")
+  local Magnet      = resolve("Magnet",     "features/magnet.lua")
+  local Generator   = resolve("Generator",  "features/generator.lua")
+  local BedAura     = resolve("BedAura",    "features/bedaura.lua")
+  local Shop        = resolve("Shop",       "features/shop.lua")
+  local AntiAFK     = resolve("AntiAFK",    "features/antiafk.lua")
+  local AutoRejoin  = resolve("AutoRejoin", "features/autorejoin.lua")
+  local Spy         = resolve("Spy",        "features/spy.lua")
+  local ESP         = resolve("ESP",        "features/esp.lua")
   
   -- ─── Boot sequence ──────────────────────────────────────────────────────────
   local function boot()
@@ -5557,12 +5612,86 @@ local _ok, _err = pcall(function()
   
   -- Expose a console helper for debugging
   -- Usage in executor console:
+  --   bw.test()        — test which executor functions are available (v1.5)
   --   bw.verify()      — show what's loaded, what's missing
   --   bw.fix()         — re-run remote extraction
   --   bw.reload()      — destroy + recreate the UI
   --   bw.panic()       — manually trigger panic
   if getgenv then
     getgenv().bw = getgenv().bw or {}
+  
+    -- v1.5: Phase 7 — bw.test() diagnostic command
+    -- Tests every executor function the script depends on. Prints
+    -- a pass/fail table. Use this if the script doesn't load to
+    -- find out which executor function is missing.
+    getgenv().bw.test = function()
+      local tests = {
+        -- Core boot
+        { name = "getgenv",          test = function() return getgenv and type(getgenv()) == "table" end },
+        { name = "game:HttpGet",     test = function() return game and game.HttpGet and pcall(function() return game:HttpGet("https://raw.githubusercontent.com", true) end) end },
+        { name = "loadstring",       test = function() local f, _ = loadstring("return 1"); return type(f) == "function" end },
+        { name = "task.spawn",       test = function() return task and task.spawn and task.delay end },
+        { name = "pcall",            test = function() local ok = pcall(function() end); return ok end },
+  
+        -- UI parent options
+        { name = "gethui",           test = function() return gethui and gethui() ~= nil end },
+        { name = "protectgui",       test = function() return protectgui and protectgui() ~= nil end },
+        { name = "cloneref",         test = function() return cloneref and cloneref(game) ~= nil end },
+        { name = "PlayerGui",        test = function() return game.Players.LocalPlayer and game.Players.LocalPlayer:FindFirstChild("PlayerGui") end },
+  
+        -- Drawing API (ESP)
+        { name = "Drawing",          test = function() return Drawing and Drawing.new and Drawing.new("Square") ~= nil end },
+  
+        -- File system (config save)
+        { name = "writefile",        test = function() return writefile and pcall(function() writefile("__bw_test", "x") end) end },
+        { name = "readfile",         test = function() return readfile end },
+        { name = "isfile",           test = function() return isfile end },
+        { name = "makefolder",       test = function() return makefolder end },
+  
+        -- Spy / anti-cheat bypass
+        { name = "hookmetamethod",   test = function() return hookmetamethod end },
+        { name = "getrawmetatable",  test = function() return getrawmetatable end },
+        { name = "setreadonly",      test = function() return setreadonly end },
+        { name = "getnamecallmethod",test = function() return getnamecallmethod end },
+  
+        -- Remote extraction
+        { name = "debug.getupvalue", test = function() return debug and debug.getupvalue end },
+        { name = "debug.getconstants",test= function() return debug and debug.getconstants end },
+        { name = "debug.getproto",   test = function() return debug and debug.getproto end },
+  
+        -- Haptic
+        { name = "vibrate",          test = function() return vibrate end },
+  
+        -- Misc
+        { name = "isnetworkowner",   test = function() return isnetworkowner end },
+        { name = "setclipboard",     test = function() return setclipboard end },
+      }
+  
+      local passed, failed = 0, 0
+      print("═══════════════════════════════════════════════")
+      print("[bw.test] === Executor Function Check ===")
+      print("[bw.test] Total: " .. #tests .. " functions")
+      print("───────────────────────────────────────────────")
+      for _, t in ipairs(tests) do
+        local ok, result = pcall(t.test)
+        if ok and result then
+          print("[bw.test]   ✓ " .. t.name)
+          passed = passed + 1
+        else
+          print("[bw.test]   ✗ " .. t.name .. " — " .. tostring(result))
+          failed = failed + 1
+        end
+      end
+      print("───────────────────────────────────────────────")
+      print(string.format("[bw.test] Result: %d/%d passed, %d failed", passed, #tests, failed))
+      if failed > 0 then
+        print("[bw.test] Missing functions will degrade features but not block boot.")
+      else
+        print("[bw.test] All functions present. Script should boot normally.")
+      end
+      print("═══════════════════════════════════════════════")
+    end
+  
     getgenv().bw.verify = function()
       local BW = getgenv()._BW
       if not BW then

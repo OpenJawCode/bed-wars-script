@@ -13,11 +13,13 @@
 --
 -- Loop rate: 5Hz (every 0.2s) to avoid spamming the server.
 
-local Services   = require(script.Parent.Parent.services)
-local GameWksp   = require(script.Parent.Parent.game.workspace)
-local Remotes     = require(script.Parent.Parent.game.remotes)
-local Logger      = require(script.Parent.Parent.util.logger)
-local PlaceId     = require(script.Parent.Parent.game.placeid)
+-- v1.5: B034 — use registry instead of require().
+local _BW      = (getgenv and getgenv()._BW) or _G._BW
+local Services  = _BW.Services
+local GameWksp  = _BW.GameWksp
+local Remotes    = _BW.Remotes
+local Logger     = _BW.Logger
+local PlaceId    = _BW.PlaceId
 
 local Magnet = {
   enabled  = false,

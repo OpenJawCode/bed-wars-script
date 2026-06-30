@@ -18,11 +18,9 @@ local Services   = _BW.Services
 local GameWksp   = _BW.GameWksp
 local PlaceId    = _BW.PlaceId
 local Logger     = _BW.Logger
+-- v1.5: B034 — Anticheat from registry. No require() fallback
+-- (it was a landmine that threw in loadstring context).
 local Anticheat  = _BW.Anticheat
-if not Anticheat then
-  local ok, mod = pcall(function() return require(script.Parent.Parent.game.bedwars_anticheat) end)
-  if ok then Anticheat = mod end
-end
 
 local Speed = {
   enabled = false,

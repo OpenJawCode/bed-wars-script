@@ -73,7 +73,9 @@ local function makeLabel(parent, text, opts)
   lbl.Font = opts.font or Theme.Font.Body
   lbl.Text = text
   lbl.TextColor3 = opts.color or Theme.Color.TextPrimary
-  lbl.TextSize = opts.textsize or Theme.Size.Body
+  -- v2.0: B044 — was `opts.textsize` (lowercase), every caller passes
+  -- `textSize` (uppercase). Fixed: now matches callers.
+  lbl.TextSize = opts.textSize or opts.textsize or Theme.Size.Body
   lbl.TextXAlignment = opts.textXAlignment or Enum.TextXAlignment.Left
   lbl.TextYAlignment = Enum.TextYAlignment.Center
   lbl.RichText = opts.richText or false
@@ -264,13 +266,43 @@ local function createFab(screengui, openMenu, accentColor)
   -- visible). The animation was a "nice to have" but kept breaking.
   -- The FAB is GUARANTEED visible from the moment it's created.
 
-  -- Tap to open menu
-  Input.onTap(fab, function()
-    Input.haptic(0.4, 0.08)
-    Anim.press(fab)
-    task.delay(Theme.Motion.Press + 0.02, function() Anim.release(fab) end)
-    openMenu()
-  end)
+  -- v2.0: B048 — Tap to open menu, HOLD to drag.
+  -- The standard Delta/Codex executor pattern: short tap opens the
+  -- menu, holding the FAB for 250ms+ starts a drag (8pt threshold
+  -- in the Dragger module ensures the drag doesn't activate on
+  -- accidental touches).
+  local tapFired = false
+  Input.onHold(fab, 250,
+    -- onHold: start drag (long press fired)
+    function()
+      Input.haptic(0.3, 0.05)
+      if Dragger and Dragger.enable then
+        pcall(function()
+          Dragger.enable(fab, {
+            snapToEdge = true,
+            snapPadding = 12,
+            clampToScreen = true,
+            threshold = 8,
+            onDragStart = function()
+              Anim.press(fab)
+            end,
+            onDragEnd = function()
+              task.delay(0.02, function() Anim.release(fab) end)
+            end,
+          })
+        end)
+      end
+    end,
+    -- onRelease(wasHold)
+    function(wasHold)
+      if wasHold then return end
+      -- Quick tap: open menu + play press animation + haptic
+      Input.haptic(0.4, 0.08)
+      Anim.press(fab)
+      task.delay(Theme.Motion.Press + 0.02, function() Anim.release(fab) end)
+      openMenu()
+    end
+  )
 
   return fab
 end
@@ -420,6 +452,23 @@ function Library:CreateWindow(settings)
   self.window = win
   applyGlass(win, { radius = Theme.Window.CornerRadius, transparency = Theme.Alpha.GlassPanel })
 
+  -- v2.0: B045 — set default Size/Position immediately. Previously
+  -- the window had no Size until SetVisible(true) was called, which
+  -- could cause 1 frame of wrong-size rendering. Now: always correct.
+  local function _defaultWinSize()
+    local camera = workspace.CurrentCamera
+    local viewport = camera and camera.ViewportSize or Vector2.new(393, 852)
+    return {
+      W = math.floor(viewport.X * Theme.Window.WidthPct),
+      H = math.floor(viewport.Y * Theme.Window.HeightPct),
+      X = math.floor((viewport.X - viewport.X * Theme.Window.WidthPct) / 2),
+      Y = math.floor((viewport.Y - viewport.Y * Theme.Window.HeightPct) / 2),
+    }
+  end
+  local _d = _defaultWinSize()
+  win.Size = UDim2.fromOffset(_d.W, _d.H)
+  win.Position = UDim2.fromOffset(_d.X, _d.Y)
+
   -- ─── Header (logo + title + search + close) ───────────────────────
   local header = Instance.new("Frame")
   header.Name = "Header"
@@ -431,6 +480,21 @@ function Library:CreateWindow(settings)
   header.ZIndex = Theme.Z.WindowContent
   header.BorderSizePixel = 0
   applyGlass(header, { radius = 0 })
+
+  -- v2.0: B047 — make the header a drag handle. The user wanted
+  -- the window to be draggable like Delta/Codex executors.
+  -- The dragger uses an 8pt threshold (B003) to prevent accidental
+  -- drags on touch-down. Snap-to-edge on release.
+  if Dragger and Dragger.enable then
+    pcall(function()
+      Dragger.enable(win, {
+        dragFrame = header,
+        snapToEdge = true,
+        snapPadding = 12,
+        clampToScreen = true,
+      })
+    end)
+  end
 
   local headerStroke = Instance.new("UIStroke")
   headerStroke.Color = Theme.Color.Border
@@ -663,8 +727,16 @@ function Library:CreateWindow(settings)
         end)
       end)
       -- Build status bar after window has size
-      task.defer(function()
-        if win.AbsoluteSize.X > 100 and not win:FindFirstChild("StatusBar") then
+      -- v2.0: B046 — was `task.defer` which reads AbsoluteSize BEFORE
+      -- the new Size propagates. The check `win.AbsoluteSize.X > 100`
+      -- was always FALSE on first frame, so the status bar (FPS, Ping,
+      -- STOP) was never created. Switched to `task.delay(0.05, ...)`
+      -- to give the Size a frame to propagate, AND check Size.X.Offset
+      -- (the immediate property) instead of AbsoluteSize (deferred).
+      task.delay(0.05, function()
+        if not win or not win.Parent then return end
+        local sX = win.Size and win.Size.X and win.Size.X.Offset or 0
+        if sX > 100 and not win:FindFirstChild("StatusBar") then
           self._pendingStatusBarCb()
           self._startStatusLoop()
         end
@@ -739,6 +811,9 @@ function Library:CreateTab(name, iconSpec)
   page.ScrollBarImageTransparency = 0.5
   page.BorderSizePixel = 0
   page.ZIndex = Theme.Z.WindowContent
+  -- v2.0: B049 — UIPageLayout uses LayoutOrder to determine page order.
+  -- Was missing, so all pages had order 0 (undefined).
+  page.LayoutOrder = #self.tabs + 1
 
   local padding = Instance.new("UIPadding")
   padding.Parent = page

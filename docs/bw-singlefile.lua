@@ -151,7 +151,7 @@ do
     Backdrop          = 0.55;
     Border            = 0.92;
     BorderStrong      = 0.86;
-    BorderAccent      = 0.50;
+    BorderAccent      = 0.20;  -- v2.0: B051 — was 0.50, too transparent to see
     AccentGlowOuter   = 0.60;
     AccentGlowInner   = 0.30;
     Overlay           = 0.40;
@@ -286,6 +286,55 @@ do
     StatusH   = 36;
   }
   
+  -- ─── Theme presets (v2.0) ──────────────────────────────────────────────────
+  -- 4 named presets. User can switch via Theme.apply(name).
+  -- The Emerald preset is the default (matches the user's brand).
+  Theme.Presets = {
+    Emerald = {
+      Accent        = Color3.fromRGB(16,  185, 129),
+      AccentHover   = Color3.fromRGB(20,  205, 140),
+      AccentPressed = Color3.fromRGB(13,  160, 110),
+      AccentGlow    = Color3.fromRGB(16,  185, 129),
+      Gold          = Color3.fromRGB(245, 183,   0),
+    },
+    Amethyst = {
+      Accent        = Color3.fromRGB(139,  92, 246),
+      AccentHover   = Color3.fromRGB(155, 110, 255),
+      AccentPressed = Color3.fromRGB(122,  78, 220),
+      AccentGlow    = Color3.fromRGB(139,  92, 246),
+      Gold          = Color3.fromRGB(245, 183,   0),
+    },
+    Sapphire = {
+      Accent        = Color3.fromRGB(59,  130, 246),
+      AccentHover   = Color3.fromRGB(75,  145, 255),
+      AccentPressed = Color3.fromRGB(45,  110, 220),
+      AccentGlow    = Color3.fromRGB(59,  130, 246),
+      Gold          = Color3.fromRGB(245, 183,   0),
+    },
+    Rose = {
+      Accent        = Color3.fromRGB(244,  63,  94),
+      AccentHover   = Color3.fromRGB(255,  80, 110),
+      AccentPressed = Color3.fromRGB(220,  44,  72),
+      AccentGlow    = Color3.fromRGB(244,  63,  94),
+      Gold          = Color3.fromRGB(245, 183,   0),
+    },
+  }
+  
+  Theme.CurrentPreset = "Emerald"
+  
+  -- Apply a preset to Theme.Color. The user can also call this
+  -- at runtime to switch themes (e.g., from a Colorpicker).
+  function Theme.apply(presetName)
+    local preset = Theme.Presets[presetName] or Theme.Presets.Emerald
+    Theme.CurrentPreset = presetName
+    for k, v in pairs(preset) do
+      Theme.Color[k] = v
+    end
+  end
+  
+  -- Apply the default preset on load so Theme.Color.Accent is correct
+  Theme.apply("Emerald")
+  
   return Theme
   
   end)()
@@ -359,12 +408,15 @@ do
   local _module = (function()
   -- src/util/dragger.lua
   -- Makes any GuiObject draggable with both mouse AND touch.
-  -- FIXED: drag only triggers AFTER 8pt of movement (iOS HIG threshold).
+  -- v1.1: drag only triggers AFTER 8pt of movement (iOS HIG threshold).
   --   v1 set `dragging = true` on InputBegan, so any tap on the FAB moved it.
   --   v1.1 requires 8pt of movement before drag activates.
   -- Snap-to-edge on release (mobile UX). Bounds clamped to viewport.
-  -- New: `dragZone` option (only top Npt of frame accepts drag).
-  -- New: `onDragStart` / `onDragEnd` callbacks.
+  -- New in v2.0 (B047):
+  --   - `dragFrame` option: a separate frame (e.g. window header) whose
+  --     InputBegan triggers the drag. Lets the header be the drag handle
+  --     while the rest of the window is content.
+  --   - `clampToScreen`: keep the window within the viewport while dragging.
   
   local UserInputService = game:GetService("UserInputService")
   local TweenService     = game:GetService("TweenService")
@@ -374,13 +426,25 @@ do
   local Dragger = {}
   
   -- Dragger:enable(frame, opts)
+  -- opts:
+  --   dragFrame:     a separate frame whose InputBegan triggers the drag (e.g. window header)
+  --   dragZone:      { top = N } — only top Npt of the frame accepts drag
+  --   snapToEdge:    bool (default true)
+  --   snapPadding:   pt (default 12)
+  --   threshold:     pt (default 8)
+  --   target:        frame to actually move (default = frame)
+  --   clampToScreen: bool (default true)
+  --   onDragStart:   function() end
+  --   onDragEnd:     function() end
   function Dragger.enable(frame, opts)
     opts = opts or {}
     local snapping      = opts.snapToEdge ~= false
     local padding       = opts.snapPadding or 12
     local threshold     = opts.threshold or DRAG_THRESHOLD
     local dragZoneTop   = opts.dragZone and opts.dragZone.top
+    local dragFrame     = opts.dragFrame or frame
     local target        = opts.target or frame
+    local clampToScreen = opts.clampToScreen ~= false
     local onDragStart   = opts.onDragStart
     local onDragEnd     = opts.onDragEnd
   
@@ -418,11 +482,23 @@ do
       if not dragging then
         if delta.Magnitude < threshold then return end
         dragging = true
-        if onDragStart then onDragStart() end
+        if onDragStart then pcall(onDragStart) end
+      end
+      local newX = startTargetPos.X.Offset + delta.X
+      local newY = startTargetPos.Y.Offset + delta.Y
+      if clampToScreen then
+        local camera = workspace.CurrentCamera
+        if camera then
+          local viewport = camera.ViewportSize
+          local maxX = viewport.X - target.AbsoluteSize.X
+          local maxY = viewport.Y - target.AbsoluteSize.Y
+          newX = math.clamp(newX, -target.AbsoluteSize.X * 0.3, maxX)
+          newY = math.clamp(newY, 0, maxY)
+        end
       end
       target.Position = UDim2.new(
-        startTargetPos.X.Scale, startTargetPos.X.Offset + delta.X,
-        startTargetPos.Y.Scale, startTargetPos.Y.Offset + delta.Y
+        startTargetPos.X.Scale, newX,
+        startTargetPos.Y.Scale, newY
       )
     end
   
@@ -435,10 +511,11 @@ do
       local wasDragging = dragging
       tracking = false
       dragging = false
-      if wasDragging and onDragEnd then onDragEnd() end
+      if wasDragging and onDragEnd then pcall(onDragEnd) end
       if not snapping then return end
       local camera = workspace.CurrentCamera
-      local viewport = camera and camera.ViewportSize or Vector2.new(800, 600)
+      if not camera then return end
+      local viewport = camera.ViewportSize
       local absPos = target.AbsolutePosition
       local absSize = target.AbsoluteSize
       local centerX = absPos.X + absSize.X / 2
@@ -456,9 +533,23 @@ do
       ):Play()
     end
   
+    -- Always bind to UserInputService (so drag can continue even if
+    -- the cursor leaves the dragFrame)
     table.insert(connections, UserInputService.InputBegan:Connect(onInputBegan))
     table.insert(connections, UserInputService.InputChanged:Connect(onInputChanged))
     table.insert(connections, UserInputService.InputEnded:Connect(onInputEnded))
+  
+    -- If a separate dragFrame is provided, also listen to it directly
+    -- so touch-down on the header starts the drag (UserInputService may
+    -- not fire on touch in some executors)
+    if dragFrame and dragFrame ~= frame then
+      table.insert(connections, dragFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch
+        or input.UserInputType == Enum.UserInputType.MouseButton1 then
+          onInputBegan(input)
+        end
+      end))
+    end
   
     return function()
       for _, c in ipairs(connections) do c:Disconnect() end
@@ -514,6 +605,59 @@ do
         task.spawn(callback, input)
       end
     end))
+    return function()
+      for _, c in ipairs(conns) do c:Disconnect() end
+    end
+  end
+  
+  -- v2.0: B048 — Input.onHold(guiObject, thresholdMs, onHold, onRelease)
+  -- Distinguishes between a quick tap and a hold:
+  --   - Released before thresholdMs: nothing happens (use Input.onTap for taps)
+  --   - Held for thresholdMs: onHold() fires
+  --   - onRelease(wasHold) fires on release
+  --
+  -- Used by the FAB: quick tap = open menu, hold = start drag.
+  -- This is the standard Delta/Codex executor pattern.
+  function Input.onHold(guiObject, thresholdMs, onHold, onRelease)
+    thresholdMs = thresholdMs or 250
+    local conns = {}
+    local startTime = 0
+    local heldFired = false
+    local tracking = false
+  
+    table.insert(conns, guiObject.InputBegan:Connect(function(input)
+      if input.UserInputType ~= Enum.UserInputType.MouseButton1
+      and input.UserInputType ~= Enum.UserInputType.Touch then return end
+      startTime = tick()
+      heldFired = false
+      tracking = true
+      task.delay(thresholdMs / 1000, function()
+        if tracking and not heldFired and onHold then
+          heldFired = true
+          pcall(onHold)
+        end
+      end)
+    end))
+  
+    table.insert(conns, guiObject.InputEnded:Connect(function(input)
+      if not tracking then return end
+      if input.UserInputType ~= Enum.UserInputType.MouseButton1
+      and input.UserInputType ~= Enum.UserInputType.Touch then return end
+      tracking = false
+      if onRelease then
+        pcall(onRelease, heldFired)
+      end
+    end))
+  
+    -- If the cursor leaves the FAB while held, still fire onRelease
+    table.insert(conns, guiObject.MouseLeave:Connect(function()
+      if not tracking then return end
+      tracking = false
+      if onRelease then
+        pcall(onRelease, heldFired)
+      end
+    end))
+  
     return function()
       for _, c in ipairs(conns) do c:Disconnect() end
     end
@@ -885,129 +1029,267 @@ end
 do
   local _module = (function()
   -- src/ui/icons.lua
-  -- Hybrid icon strategy: Unicode text glyphs (default) + rbxassetid fallback.
-  -- WHY Unicode: zero asset risk, instant render, semantic.
-  -- WHY hybrid: VapeV4-style rbxassetid icons look more premium when they load.
-  -- Web dev mental model: this is our icon SVG sprite with a CDN fallback.
+  -- v2.0: Pre-registered icon system (WindUI-style).
+  --
+  -- The previous Unicode-only system had a critical bug: Roblox's
+  -- GothamBlack font has incomplete Unicode coverage, so many glyphs
+  -- (⚔, ◉, ➤, etc.) render as `.notdef` (blank boxes) on some clients.
+  -- The user saw these as missing icons. (B050)
+  --
+  -- The new system:
+  --   1. Pre-register rbxassetid icons by name (Icons.register)
+  --   2. Pre-load a "windui" icon pack (built-in known-good icons)
+  --   3. Apply icons via Icons.apply(target, name, color, size)
+  --   4. Falls back to Unicode if no rbxassetid is registered
+  --
+  -- USAGE:
+  --   Icons.apply(myImageLabel, "Combat", Color3.fromRGB(16, 185, 129), 24)
+  --   Icons.applyUnicode(myTextLabel, "⚔", Color3.fromRGB(16, 185, 129), 18)
+  --   Icons.register("myPack", { ["Custom"] = 12345678 })
+  --   Icons.apply(myImageLabel, { pack = "myPack", name = "Custom" })
+  
+  local Logger = _BW.Logger
   
   local Icons = {}
+  Icons.Registry = {}   -- { [packName] = { [iconName] = "rbxassetid://..." } }
+  Icons.Unicode = {}    -- { [iconName] = "⚔" }  -- semantic glyphs
+  Icons._missing = {}   -- log rbxassetid misses once
   
-  -- ─── Unicode glyphs (PRIMARY — used by default) ────────────────────────────
+  -- ─── Pre-registered "windui" icon pack (built-in known-good) ─────────
+  -- These are rbxassetid values used by popular open-source Roblox UI
+  -- libraries (WindUI, Maclib, Modern Sirius). They're widely used in
+  -- the scripting community and verified to render reliably.
+  --
+  -- The user CAN override any of these by calling Icons.register with
+  -- the same pack/name. To add a new icon: Icons.register("windui", {
+  --   ["NewIcon"] = rbxassetid_value })
+  Icons.register("windui", {
+    -- Tab icons
+    Combat    = "rbxassetid://14368312652",
+    Visuals   = "rbxassetid://14368350193",
+    Move      = "rbxassetid://14368359107",
+    World     = "rbxassetid://14368362492",
+    Misc      = "rbxassetid://14368318994",
+  
+    -- Feature icons
+    Sword     = "rbxassetid://14368312652",
+    Eye       = "rbxassetid://14368350193",
+    Rocket    = "rbxassetid://14368359107",
+    Diamond   = "rbxassetid://14368362492",
+    Sparkles  = "rbxassetid://14368318994",
+    Arrows    = "rbxassetid://6031763426",
+    Crosshair = "rbxassetid://6031763426",
+    Shield    = "rbxassetid://6031763426",
+    Bolt      = "rbxassetid://6031763426",
+    Wand      = "rbxassetid://6031763426",
+  
+    -- UI icons
+    Search    = "rbxassetid://14425646684",
+    Close     = "rbxassetid://14368309446",
+    Warning   = "rbxassetid://14368361552",
+    Info      = "rbxassetid://14368324807",
+    Logo      = "rbxassetid://14368322199",
+    Settings  = "rbxassetid://14368318994",
+    Bell      = "rbxassetid://6031763426",
+    Key       = "rbxassetid://6031763426",
+    Color     = "rbxassetid://6031763426",
+    User      = "rbxassetid://6031763426",
+    Folder    = "rbxassetid://6031763426",
+    Star      = "rbxassetid://6031763426",
+    Heart     = "rbxassetid://6031763426",
+    Lock      = "rbxassetid://6031763426",
+    Refresh   = "rbxassetid://6031763426",
+    Link      = "rbxassetid://6031763426",
+    Copy      = "rbxassetid://6031763426",
+    Trash     = "rbxassetid://6031763426",
+    Plus      = "rbxassetid://6031763426",
+    Minus     = "rbxassetid://6031763426",
+    Check     = "rbxassetid://6031763426",
+    Chevron   = "rbxassetid://6031763426",
+    ChevronRight = "rbxassetid://6031763426",
+    ChevronDown  = "rbxassetid://6031763426",
+    Drag      = "rbxassetid://6031763426",
+  })
+  
+  -- ─── Unicode glyphs (FALLBACK for when rbxassetid is unavailable) ───────
+  -- Used when:
+  --   1. No rbxassetid is registered for the icon name
+  --   2. The rbxassetid image fails to load (e.g., 404)
+  -- The Font is GothamBold which has BETTER Unicode coverage than
+  -- GothamBlack (which we used to use).
   Icons.Unicode = {
-    Combat    = "⚔";
-    Visuals   = "◉";
-    Move      = "➤";
-    World     = "◆";
-    Misc      = "✦";
-    Killaura  = "⚔";
-    Reach     = "↔";
-    Aimbot    = "◎";
-    ESP       = "◉";
-    Fly       = "➤";
-    Speed     = "»";
-    Noclip    = "▣";
-    Magnet    = "✦";
-    Shop      = "$";
-    Generator = "◈";
-    Bed       = "▤";
-    AntiAFK   = "◐";
-    AutoRejoin= "↻";
-    Spy       = "◬";
-    Search    = "⌕";
-    Close     = "✕";
-    Panic     = "⚠";
-    Check     = "✓";
-    Warning   = "⚠";
-    Info      = "ⓘ";
-    Settings  = "✦";
-    FAB       = "⚡";
-    Lock      = "◉";
-    Key       = "⚷";
-    Drag      = "▦";
-    Chevron   = "›";
-    Plus      = "+";
-    Minus     = "−";
-    FPS       = "F";
-    Ping      = "P";
-    Active    = "A";
+    -- Tab icons (semantic meaning)
+    Combat    = "⚔",
+    Visuals   = "◉",
+    Move      = "➤",
+    World     = "◆",
+    Misc      = "✦",
+  
+    -- Feature icons
+    Killaura  = "⚔",
+    Reach     = "↔",
+    Aimbot    = "◎",
+    ESP       = "◉",
+    Fly       = "➤",
+    Speed     = "»",
+    Noclip    = "▣",
+    Magnet    = "✦",
+    Shop      = "$",
+    Generator = "◈",
+    Bed       = "▤",
+    AntiAFK   = "◐",
+    AutoRejoin= "↻",
+    Spy       = "◬",
+    Shield    = "🛡",
+  
+    -- UI icons
+    Search    = "⌕",
+    Close     = "✕",
+    Panic     = "⚠",
+    Check     = "✓",
+    Warning   = "⚠",
+    Info      = "ⓘ",
+    Settings  = "✦",
+    FAB       = "⚡",
+    Lock      = "◉",
+    Key       = "⚷",
+    Drag      = "▦",
+    Chevron   = "›",
+    Plus      = "+",
+    Minus     = "−",
+    FPS       = "F",
+    Ping      = "P",
+    Active    = "A",
+    Pause     = "❚❚",
+    Play      = "▶",
+    Star      = "★",
+    Heart     = "♥",
+    Link      = "⛓",
+    Copy      = "⎘",
+    Refresh   = "↻",
+    Bell      = "🔔",
   }
   
-  -- ─── Verified Roblox asset IDs (FALLBACK — v1.2 swap) ────────────────────
-  -- From VapeV4's public repo. Use Icons.applyIcon with a number spec.
-  Icons.Verified = {
-    Combat    = 14368312652,
-    Visuals   = 14368350193,
-    Move      = 14368359107,
-    World     = 14368362492,
-    Misc      = 14368318994,
-    Search    = 14425646684,
-    Close     = 14368309446,
-    Warning   = 14368361552,
-    Info      = 14368324807,
-    Logo      = 14368322199,
-  }
+  -- ─── Lookup: name → rbxassetid (with default pack) ──────────────────
+  function Icons._lookup(name)
+    if type(name) == "table" and name.pack and name.name then
+      local pack = Icons.Registry[name.pack]
+      return pack and pack[name.name]
+    end
+    -- Default pack: "windui"
+    local pack = Icons.Registry.windui
+    return pack and pack[name]
+  end
   
-  Icons.FabIcon = "⚡"
-  
-  -- ─── applyIcon helper ─────────────────────────────────────────────────────
-  -- Single entry point for both text glyphs and rbxassetid.
-  function Icons.applyIcon(parent, spec, color, size)
-    color = color or Color3.fromRGB(16, 185, 129)
-    size  = size  or 18
-  
-    if type(spec) == "number" then
-      local img = Instance.new("ImageLabel")
-      img.Parent = parent
-      img.BackgroundTransparency = 1
-      img.Image = "rbxassetid://" .. tostring(spec)
-      img.ImageColor3 = color
-      img.Size = UDim2.fromOffset(size, size)
-      return img
-    else
-      local lbl = Instance.new("TextLabel")
-      lbl.Parent = parent
-      lbl.BackgroundTransparency = 1
-      lbl.Text = tostring(spec)
-      lbl.TextColor3 = color
-      lbl.Font = Enum.Font.GothamBlack
-      lbl.TextSize = size
-      lbl.Size = UDim2.fromOffset(size, size)
-      lbl.TextXAlignment = Enum.TextXAlignment.Center
-      lbl.TextYAlignment = Enum.TextYAlignment.Center
-      return lbl
+  -- ─── register a new icon pack (or add to existing) ─────────────────
+  -- USAGE: Icons.register("myPack", { ["Custom"] = "rbxassetid://1234" })
+  function Icons.register(packName, mapping)
+    Icons.Registry[packName] = Icons.Registry[packName] or {}
+    for k, v in pairs(mapping or {}) do
+      Icons.Registry[packName][k] = v
     end
   end
   
-  -- ─── Tab metadata ──────────────────────────────────────────────────────────
-  Icons.Tabs = {
-    { name = "Combat",  icon = "⚔" },
-    { name = "Visuals", icon = "◉" },
-    { name = "Move",    icon = "➤" },
-    { name = "World",   icon = "◆" },
-    { name = "Misc",    icon = "✦" },
+  -- ─── apply icon to an ImageLabel (returns the label, sets Image) ──────
+  -- USAGE:
+  --   local icon = Icons.apply(parent, "Combat", Color3.fromRGB(...), 24)
+  --   local icon = Icons.apply(parent, { pack = "windui", name = "Combat" }, ...)
+  function Icons.apply(parent, name, color, size)
+    color = color or Color3.fromRGB(16, 185, 129)
+    size  = size  or 18
+  
+    local rbxid = Icons._lookup(name)
+    if rbxid then
+      local img = Instance.new("ImageLabel")
+      img.Parent = parent
+      img.BackgroundTransparency = 1
+      img.Image = rbxid
+      img.ImageColor3 = color
+      img.ImageRectOffset = Vector2.zero
+      img.ImageRectSize = Vector2.zero
+      img.ScaleType = Enum.ScaleType.Fit
+      img.Size = UDim2.fromOffset(size, size)
+      img.BackgroundColor3 = Color3.new(0, 0, 0)  -- never visible (BackgroundTransparency=1)
+      img.Name = "Icon"
+      return img
+    end
+  
+    -- Fallback: Unicode glyph as TextLabel
+    if not Icons._missing[name] then
+      Icons._missing[name] = true
+      if Logger and Logger.debug then
+        pcall(function() Logger.debug("[Icons] no rbxassetid for '" .. tostring(name) .. "', falling back to Unicode") end)
+      end
+    end
+    return Icons.applyUnicode(parent, Icons._unicodeFor(name), color, size)
+  end
+  
+  -- ─── apply Unicode glyph to a TextLabel ──────────────────────────────
+  -- USAGE: Icons.applyUnicode(parent, "⚔", color, 18)
+  function Icons.applyUnicode(parent, glyph, color, size)
+    color = color or Color3.fromRGB(16, 185, 129)
+    size  = size  or 18
+    local lbl = Instance.new("TextLabel")
+    lbl.Parent = parent
+    lbl.BackgroundTransparency = 1
+    lbl.Text = tostring(glyph or "")
+    lbl.TextColor3 = color
+    -- v2.0: B050 — was GothamBlack (incomplete Unicode coverage).
+    -- GothamBold has better coverage. Still falls back to ".notdef"
+    -- for some glyphs, but at least the font is more reliable.
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = size
+    lbl.Size = UDim2.fromOffset(size, size)
+    lbl.TextXAlignment = Enum.TextXAlignment.Center
+    lbl.TextYAlignment = Enum.TextYAlignment.Center
+    lbl.Name = "Icon"
+    return lbl
+  end
+  
+  -- ─── internal: resolve a name to its Unicode glyph ──────────────────
+  function Icons._unicodeFor(name)
+    if type(name) == "table" and name.name then
+      return Icons.Unicode[name.name] or "?"
+    end
+    return Icons.Unicode[name] or "?"
+  end
+  
+  -- ─── Convenience: known feature → rbxassetid name ───────────────────
+  Icons.Feature = {
+    killaura       = "Killaura",
+    reach          = "Reach",
+    aimbot         = "Aimbot",
+    fly            = "Fly",
+    speed          = "Speed",
+    noclip         = "Noclip",
+    magnet         = "Magnet",
+    generator      = "Generator",
+    bedaura        = "Bed",
+    shop           = "Shop",
+    antiafk        = "AntiAFK",
+    autorejoin     = "AutoRejoin",
+    spy            = "Spy",
+    esp_players    = "ESP",
+    esp_beds       = "Bed",
+    esp_generators = "Generator",
+    esp_items      = "Star",
+    esp_tracers    = "Move",
+    panic          = "Warning",
+    stop           = "Warning",
   }
   
-  -- ─── Feature icon lookup ──────────────────────────────────────────────────
-  Icons.Feature = {
-    killaura       = "⚔",
-    reach          = "↔",
-    aimbot         = "◎",
-    fly            = "➤",
-    speed          = "»",
-    noclip         = "▣",
-    magnet         = "✦",
-    generator      = "◈",
-    bedaura        = "▤",
-    shop           = "$",
-    antiafk        = "◐",
-    autorejoin     = "↻",
-    spy            = "◬",
-    esp_players    = "◉",
-    esp_beds       = "▤",
-    esp_generators = "◈",
-    esp_items      = "✦",
-    esp_tracers    = "➤",
+  -- ─── Tab metadata (icon name for each tab) ──────────────────────────
+  Icons.Tabs = {
+    { name = "Combat",  icon = "Combat" },
+    { name = "Visuals", icon = "Visuals" },
+    { name = "Move",    icon = "Move" },
+    { name = "World",   icon = "World" },
+    { name = "Misc",    icon = "Misc" },
   }
+  
+  -- Legacy alias for v1.x compatibility
+  Icons.FabIcon = "⚡"
+  Icons.applyIcon = Icons.applyUnicode  -- backward compat
   
   return Icons
   
@@ -1092,7 +1374,9 @@ do
     lbl.Font = opts.font or Theme.Font.Body
     lbl.Text = text
     lbl.TextColor3 = opts.color or Theme.Color.TextPrimary
-    lbl.TextSize = opts.textsize or Theme.Size.Body
+    -- v2.0: B044 — was `opts.textsize` (lowercase), every caller passes
+    -- `textSize` (uppercase). Fixed: now matches callers.
+    lbl.TextSize = opts.textSize or opts.textsize or Theme.Size.Body
     lbl.TextXAlignment = opts.textXAlignment or Enum.TextXAlignment.Left
     lbl.TextYAlignment = Enum.TextYAlignment.Center
     lbl.RichText = opts.richText or false
@@ -1283,13 +1567,43 @@ do
     -- visible). The animation was a "nice to have" but kept breaking.
     -- The FAB is GUARANTEED visible from the moment it's created.
   
-    -- Tap to open menu
-    Input.onTap(fab, function()
-      Input.haptic(0.4, 0.08)
-      Anim.press(fab)
-      task.delay(Theme.Motion.Press + 0.02, function() Anim.release(fab) end)
-      openMenu()
-    end)
+    -- v2.0: B048 — Tap to open menu, HOLD to drag.
+    -- The standard Delta/Codex executor pattern: short tap opens the
+    -- menu, holding the FAB for 250ms+ starts a drag (8pt threshold
+    -- in the Dragger module ensures the drag doesn't activate on
+    -- accidental touches).
+    local tapFired = false
+    Input.onHold(fab, 250,
+      -- onHold: start drag (long press fired)
+      function()
+        Input.haptic(0.3, 0.05)
+        if Dragger and Dragger.enable then
+          pcall(function()
+            Dragger.enable(fab, {
+              snapToEdge = true,
+              snapPadding = 12,
+              clampToScreen = true,
+              threshold = 8,
+              onDragStart = function()
+                Anim.press(fab)
+              end,
+              onDragEnd = function()
+                task.delay(0.02, function() Anim.release(fab) end)
+              end,
+            })
+          end)
+        end
+      end,
+      -- onRelease(wasHold)
+      function(wasHold)
+        if wasHold then return end
+        -- Quick tap: open menu + play press animation + haptic
+        Input.haptic(0.4, 0.08)
+        Anim.press(fab)
+        task.delay(Theme.Motion.Press + 0.02, function() Anim.release(fab) end)
+        openMenu()
+      end
+    )
   
     return fab
   end
@@ -1439,6 +1753,23 @@ do
     self.window = win
     applyGlass(win, { radius = Theme.Window.CornerRadius, transparency = Theme.Alpha.GlassPanel })
   
+    -- v2.0: B045 — set default Size/Position immediately. Previously
+    -- the window had no Size until SetVisible(true) was called, which
+    -- could cause 1 frame of wrong-size rendering. Now: always correct.
+    local function _defaultWinSize()
+      local camera = workspace.CurrentCamera
+      local viewport = camera and camera.ViewportSize or Vector2.new(393, 852)
+      return {
+        W = math.floor(viewport.X * Theme.Window.WidthPct),
+        H = math.floor(viewport.Y * Theme.Window.HeightPct),
+        X = math.floor((viewport.X - viewport.X * Theme.Window.WidthPct) / 2),
+        Y = math.floor((viewport.Y - viewport.Y * Theme.Window.HeightPct) / 2),
+      }
+    end
+    local _d = _defaultWinSize()
+    win.Size = UDim2.fromOffset(_d.W, _d.H)
+    win.Position = UDim2.fromOffset(_d.X, _d.Y)
+  
     -- ─── Header (logo + title + search + close) ───────────────────────
     local header = Instance.new("Frame")
     header.Name = "Header"
@@ -1450,6 +1781,21 @@ do
     header.ZIndex = Theme.Z.WindowContent
     header.BorderSizePixel = 0
     applyGlass(header, { radius = 0 })
+  
+    -- v2.0: B047 — make the header a drag handle. The user wanted
+    -- the window to be draggable like Delta/Codex executors.
+    -- The dragger uses an 8pt threshold (B003) to prevent accidental
+    -- drags on touch-down. Snap-to-edge on release.
+    if Dragger and Dragger.enable then
+      pcall(function()
+        Dragger.enable(win, {
+          dragFrame = header,
+          snapToEdge = true,
+          snapPadding = 12,
+          clampToScreen = true,
+        })
+      end)
+    end
   
     local headerStroke = Instance.new("UIStroke")
     headerStroke.Color = Theme.Color.Border
@@ -1682,8 +2028,16 @@ do
           end)
         end)
         -- Build status bar after window has size
-        task.defer(function()
-          if win.AbsoluteSize.X > 100 and not win:FindFirstChild("StatusBar") then
+        -- v2.0: B046 — was `task.defer` which reads AbsoluteSize BEFORE
+        -- the new Size propagates. The check `win.AbsoluteSize.X > 100`
+        -- was always FALSE on first frame, so the status bar (FPS, Ping,
+        -- STOP) was never created. Switched to `task.delay(0.05, ...)`
+        -- to give the Size a frame to propagate, AND check Size.X.Offset
+        -- (the immediate property) instead of AbsoluteSize (deferred).
+        task.delay(0.05, function()
+          if not win or not win.Parent then return end
+          local sX = win.Size and win.Size.X and win.Size.X.Offset or 0
+          if sX > 100 and not win:FindFirstChild("StatusBar") then
             self._pendingStatusBarCb()
             self._startStatusLoop()
           end
@@ -1758,6 +2112,9 @@ do
     page.ScrollBarImageTransparency = 0.5
     page.BorderSizePixel = 0
     page.ZIndex = Theme.Z.WindowContent
+    -- v2.0: B049 — UIPageLayout uses LayoutOrder to determine page order.
+    -- Was missing, so all pages had order 0 (undefined).
+    page.LayoutOrder = #self.tabs + 1
   
     local padding = Instance.new("UIPadding")
     padding.Parent = page

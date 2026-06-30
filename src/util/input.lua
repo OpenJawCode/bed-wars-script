@@ -43,6 +43,59 @@ function Input.onTap(guiObject, callback)
   end
 end
 
+-- v2.0: B048 — Input.onHold(guiObject, thresholdMs, onHold, onRelease)
+-- Distinguishes between a quick tap and a hold:
+--   - Released before thresholdMs: nothing happens (use Input.onTap for taps)
+--   - Held for thresholdMs: onHold() fires
+--   - onRelease(wasHold) fires on release
+--
+-- Used by the FAB: quick tap = open menu, hold = start drag.
+-- This is the standard Delta/Codex executor pattern.
+function Input.onHold(guiObject, thresholdMs, onHold, onRelease)
+  thresholdMs = thresholdMs or 250
+  local conns = {}
+  local startTime = 0
+  local heldFired = false
+  local tracking = false
+
+  table.insert(conns, guiObject.InputBegan:Connect(function(input)
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1
+    and input.UserInputType ~= Enum.UserInputType.Touch then return end
+    startTime = tick()
+    heldFired = false
+    tracking = true
+    task.delay(thresholdMs / 1000, function()
+      if tracking and not heldFired and onHold then
+        heldFired = true
+        pcall(onHold)
+      end
+    end)
+  end))
+
+  table.insert(conns, guiObject.InputEnded:Connect(function(input)
+    if not tracking then return end
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1
+    and input.UserInputType ~= Enum.UserInputType.Touch then return end
+    tracking = false
+    if onRelease then
+      pcall(onRelease, heldFired)
+    end
+  end))
+
+  -- If the cursor leaves the FAB while held, still fire onRelease
+  table.insert(conns, guiObject.MouseLeave:Connect(function()
+    if not tracking then return end
+    tracking = false
+    if onRelease then
+      pcall(onRelease, heldFired)
+    end
+  end))
+
+  return function()
+    for _, c in ipairs(conns) do c:Disconnect() end
+  end
+end
+
 -- Haptic feedback (vibration) — tries executor-specific first, then gamepad.
 function Input.haptic(strength, duration)
   strength = math.clamp(strength or 0.3, 0, 1)

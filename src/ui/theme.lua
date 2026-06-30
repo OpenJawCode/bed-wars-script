@@ -76,7 +76,7 @@ Theme.Alpha = {
   Backdrop          = 0.55;
   Border            = 0.92;
   BorderStrong      = 0.86;
-  BorderAccent      = 0.50;
+  BorderAccent      = 0.20;  -- v2.0: B051 — was 0.50, too transparent to see
   AccentGlowOuter   = 0.60;
   AccentGlowInner   = 0.30;
   Overlay           = 0.40;
@@ -210,5 +210,54 @@ Theme.Window = {
   TopTabH   = 48;
   StatusH   = 36;
 }
+
+-- ─── Theme presets (v2.0) ──────────────────────────────────────────────────
+-- 4 named presets. User can switch via Theme.apply(name).
+-- The Emerald preset is the default (matches the user's brand).
+Theme.Presets = {
+  Emerald = {
+    Accent        = Color3.fromRGB(16,  185, 129),
+    AccentHover   = Color3.fromRGB(20,  205, 140),
+    AccentPressed = Color3.fromRGB(13,  160, 110),
+    AccentGlow    = Color3.fromRGB(16,  185, 129),
+    Gold          = Color3.fromRGB(245, 183,   0),
+  },
+  Amethyst = {
+    Accent        = Color3.fromRGB(139,  92, 246),
+    AccentHover   = Color3.fromRGB(155, 110, 255),
+    AccentPressed = Color3.fromRGB(122,  78, 220),
+    AccentGlow    = Color3.fromRGB(139,  92, 246),
+    Gold          = Color3.fromRGB(245, 183,   0),
+  },
+  Sapphire = {
+    Accent        = Color3.fromRGB(59,  130, 246),
+    AccentHover   = Color3.fromRGB(75,  145, 255),
+    AccentPressed = Color3.fromRGB(45,  110, 220),
+    AccentGlow    = Color3.fromRGB(59,  130, 246),
+    Gold          = Color3.fromRGB(245, 183,   0),
+  },
+  Rose = {
+    Accent        = Color3.fromRGB(244,  63,  94),
+    AccentHover   = Color3.fromRGB(255,  80, 110),
+    AccentPressed = Color3.fromRGB(220,  44,  72),
+    AccentGlow    = Color3.fromRGB(244,  63,  94),
+    Gold          = Color3.fromRGB(245, 183,   0),
+  },
+}
+
+Theme.CurrentPreset = "Emerald"
+
+-- Apply a preset to Theme.Color. The user can also call this
+-- at runtime to switch themes (e.g., from a Colorpicker).
+function Theme.apply(presetName)
+  local preset = Theme.Presets[presetName] or Theme.Presets.Emerald
+  Theme.CurrentPreset = presetName
+  for k, v in pairs(preset) do
+    Theme.Color[k] = v
+  end
+end
+
+-- Apply the default preset on load so Theme.Color.Accent is correct
+Theme.apply("Emerald")
 
 return Theme

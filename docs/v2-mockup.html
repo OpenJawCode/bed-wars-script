@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bedwars Script v2.0 — UI Mockup</title>
+<style>
+/* ─── Theme tokens (Emerald default) ─────────────────────────────────── */
+:root {
+  --bg: #0A0F1A;
+  --surface: #121620;
+  --surface-raised: #181E2A;
+  --surface-inset: #0E1218;
+
+  --text-primary: #F0F2F8;
+  --text-secondary: #A0AABC;
+  --text-muted: #6E788A;
+
+  --accent: #10B981;
+  --accent-hover: #14CD8C;
+  --accent-pressed: #0DA06E;
+  --accent-glow: rgba(16, 185, 129, 0.4);
+
+  --gold: #F5B700;
+  --danger: #EF4444;
+  --info: #3B82F6;
+
+  --radius-pill: 9999px;
+  --radius-card: 14px;
+  --radius-input: 10px;
+  --radius-icon: 8px;
+
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+
+  --header-height: 44px;
+  --tab-height: 48px;
+  --statusbar-height: 36px;
+  --touch-fab: 56px;
+
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+}
+
+/* Theme: Amethyst */
+[data-theme="amethyst"] {
+  --accent: #8B5CF6;
+  --accent-hover: #9B6EFE;
+  --accent-pressed: #7A4EE0;
+  --accent-glow: rgba(139, 92, 246, 0.4);
+}
+
+/* Theme: Sapphire */
+[data-theme="sapphire"] {
+  --accent: #3B82F6;
+  --accent-hover: #4B91FF;
+  --accent-pressed: #2A70E0;
+  --accent-glow: rgba(59, 130, 246, 0.4);
+}
+
+/* Theme: Rose */
+[data-theme="rose"] {
+  --accent: #F43F5E;
+  --accent-hover: #FF506E;
+  --accent-pressed: #E02A4A;
+  --accent-glow: rgba(244, 63, 94, 0.4);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  background: linear-gradient(135deg, #1a0e2e 0%, #0A0F1A 50%, #051a14 100%);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px 80px;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3 { font-weight: 700; letter-spacing: -0.02em; }
+h1 { font-size: 28px; margin-bottom: 8px; }
+h2 { font-size: 18px; margin-bottom: 12px; color: var(--text-secondary); font-weight: 500; }
+
+/* ─── Mockup frame (phone screen) ───────────────────────────────────── */
+.phone-frame {
+  position: relative;
+  width: 393px;
+  height: 852px;
+  background: url('https://tr.rbxcdn.com/180DAY-b89b1d8f7a9b0c5c0c5f3a4d8e8b8e8e/420/420/Image/Png') center/cover, #1a0e2e;
+  background-blend-mode: overlay;
+  border-radius: 44px;
+  border: 4px solid #1f2937;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05) inset;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Bedwars game background simulation */
+.phone-frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 200, 100, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 70% 80%, rgba(100, 200, 255, 0.15) 0%, transparent 50%),
+    linear-gradient(180deg, rgba(20, 30, 50, 0.8) 0%, rgba(10, 15, 26, 0.95) 100%);
+  z-index: 0;
+}
+
+/* ─── Backdrop (when window is open) ───────────────────────────────── */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 1;
+}
+
+/* ─── The Window ──────────────────────────────────────────────────── */
+.window {
+  position: absolute;
+  top: 8%;
+  left: 4%;
+  right: 4%;
+  bottom: 8%;
+  background: rgba(18, 22, 32, 0.85);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 1px 0 rgba(255, 255, 255, 0.08) inset;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 2;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── Mac-style Topbar (44px) ─────────────────────────────────────── */
+.topbar {
+  position: relative;
+  height: var(--header-height);
+  background: rgba(14, 18, 24, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 12px;
+  user-select: none;
+  cursor: grab;
+}
+
+.topbar:active { cursor: grabbing; }
+
+.traffic-lights {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 0.5px solid rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.dot:hover { filter: brightness(1.2); }
+.dot.close   { background: #FF5F57; }
+.dot.min     { background: #FEBC2E; }
+.dot.max     { background: #28C840; }
+
+.topbar-title {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+  gap: 2px;
+  margin-left: -52px;  /* offset for traffic lights */
+}
+.topbar-title h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+.topbar-title span {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+}
+.tag.accent {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--accent);
+}
+
+.theme-picker {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.theme-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: all 0.2s;
+}
+.theme-dot.active { border-color: var(--text-primary); transform: scale(1.15); }
+.theme-dot:hover { transform: scale(1.1); }
+
+/* ─── Tab bar (48px) ─────────────────────────────────────────────── */
+.tabbar {
+  position: relative;
+  height: var(--tab-height);
+  background: rgba(14, 18, 24, 0.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabbar::-webkit-scrollbar { display: none; }
+
+.tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tab:hover { color: var(--text-secondary); background: rgba(255, 255, 255, 0.03); }
+.tab.active {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+.tab .tab-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.search-input {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  width: 100px;
+  outline: none;
+}
+.search-input:focus {
+  border-color: var(--accent);
+  width: 140px;
+  transition: all 0.2s;
+}
+
+/* ─── Content area ──────────────────────────────────────────────── */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 12px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
+}
+.content::-webkit-scrollbar { width: 4px; }
+.content::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 4px; }
+
+/* ─── Section ───────────────────────────────────────────────────── */
+.section {
+  margin-bottom: 16px;
+}
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+.section-title .dot-accent {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+.section-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: -4px 0 8px 4px;
+  line-height: 1.4;
+}
+
+.group {
+  background: rgba(18, 22, 32, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+/* ─── Toggle (Switch) ───────────────────────────────────────────── */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.row:last-child { border-bottom: none; }
+.row:hover { background: rgba(255, 255, 255, 0.02); }
+
+.row-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-icon);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 14px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+.row.active .row-icon {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+
+.row-body { flex: 1; min-width: 0; }
+.row-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+.row-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.3;
+  margin-top: 2px;
+}
+
+/* Toggle switch */
+.switch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: var(--text-secondary);
+  border-radius: 50%;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.row.active .switch {
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+.row.active .switch::after {
+  left: 20px;
+  background: white;
+}
+
+/* Checkbox variant */
+.checkbox {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.row.active .checkbox {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  font-size: 12px;
+}
+
+/* ─── Slider ────────────────────────────────────────────────────── */
+.slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+.slider-row:last-child { border-bottom: none; }
+
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.slider-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.slider-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  padding: 2px 8px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-radius: 6px;
+}
+
+.slider-track {
+  position: relative;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: visible;
+}
+.slider-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 65%;
+  background: var(--accent);
+  border-radius: 2px;
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+.slider-knob {
+  position: absolute;
+  left: 65%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 0 0 4px var(--accent-glow);
+}
+
+/* ─── Dropdown ──────────────────────────────────────────────────── */
+.dropdown {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.dropdown-value {
+  color: var(--accent);
+  font-weight: 500;
+}
+.dropdown-arrow { color: var(--text-muted); }
+
+/* ─── Status bar (36px) ────────────────────────────────────────── */
+.statusbar {
+  height: var(--statusbar-height);
+  background: rgba(14, 18, 24, 0.6);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 12px;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+.stat-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+.stat-fps .stat-dot { background: var(--accent); }
+.stat-ping .stat-dot { background: var(--info); }
+.stat-active .stat-dot { background: var(--gold); }
+
+.panic {
+  margin-left: auto;
+  padding: 6px 12px;
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  box-shadow: 0 0 0 0 var(--danger);
+  transition: box-shadow 0.2s;
+}
+.panic:hover { box-shadow: 0 0 16px rgba(239, 68, 68, 0.5); }
+
+/* ─── FAB (Floating Action Button) ─────────────────────────────── */
+.fab {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-pressed) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  z-index: 3;
+  box-shadow:
+    0 8px 24px var(--accent-glow),
+    0 0 0 4px rgba(16, 185, 129, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: transform 0.2s, box-shadow 0.2s;
+  user-select: none;
+}
+.fab:hover { transform: scale(1.05); }
+.fab:active { cursor: grabbing; }
+.fab-icon {
+  font-size: 24px;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Position labels */
+.demo-section {
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 32px;
+}
+.demo-section h2 {
+  margin-bottom: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Variant grid */
+.variant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  width: 100%;
+  max-width: 1200px;
+  margin-bottom: 48px;
+}
+
+.variant {
+  background: rgba(18, 22, 32, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 18px;
+  overflow: hidden;
+  height: 600px;
+  position: relative;
+}
+.variant-header {
+  padding: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.variant-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+.variant-subtitle {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.variant-body {
+  position: relative;
+  width: 100%;
+  height: calc(100% - 44px);
+  background: linear-gradient(135deg, #1a0e2e 0%, #0A0F1A 50%, #051a14 100%);
+}
+
+/* Mini window for variants */
+.mini-window {
+  position: absolute;
+  top: 5%;
+  left: 5%;
+  right: 5%;
+  bottom: 5%;
+  background: rgba(18, 22, 32, 0.92);
+  backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.mini-topbar {
+  height: 32px;
+  background: rgba(14, 18, 24, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 6px;
+}
+.mini-topbar .dot { width: 8px; height: 8px; }
+.mini-topbar .title {
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-right: 38px;
+}
+.mini-tabbar {
+  height: 36px;
+  background: rgba(14, 18, 24, 0.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 4px;
+  overflow: hidden;
+}
+.mini-tab {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.mini-tab.active {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+  position: relative;
+}
+.mini-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 25%;
+  right: 25%;
+  height: 1.5px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+.mini-content {
+  flex: 1;
+  padding: 8px;
+  overflow: hidden;
+}
+.mini-statusbar {
+  height: 28px;
+  background: rgba(14, 18, 24, 0.6);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 8px;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+.mini-stat-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 2px;
+}
+.mini-panic {
+  margin-left: auto;
+  background: var(--danger);
+  color: white;
+  font-weight: 700;
+  font-size: 8px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  letter-spacing: 0.05em;
+}
+
+.mini-fab {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-pressed));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 18px;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15), 0 4px 12px var(--accent-glow);
+}
+
+/* Notes section */
+.notes {
+  width: 100%;
+  max-width: 1200px;
+  background: rgba(18, 22, 32, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 18px;
+  padding: 24px;
+  margin-bottom: 48px;
+}
+.notes h2 { color: var(--text-primary); margin-bottom: 16px; }
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.note-card {
+  background: rgba(14, 18, 24, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 16px;
+}
+.note-card h3 {
+  font-size: 13px;
+  color: var(--accent);
+  margin-bottom: 8px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.note-card p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.note-card ul {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  padding-left: 16px;
+  list-style: none;
+}
+.note-card li::before {
+  content: '•';
+  color: var(--accent);
+  margin-right: 8px;
+}
+</style>
+</head>
+<body data-theme="emerald">
+
+<h1>Bedwars Script v2.0</h1>
+<h2>UI Mockup — Reskin Preview</h2>
+
+<!-- Main full-size phone -->
+<div class="demo-section">
+  <h2>1. Full-size window (393×852 — Motorola Edge 20)</h2>
+  <div class="phone-frame" id="phone">
+    <div class="backdrop"></div>
+
+    <div class="window" id="window">
+      <!-- Mac topbar -->
+      <div class="topbar">
+        <div class="traffic-lights">
+          <div class="dot close"></div>
+          <div class="dot min"></div>
+          <div class="dot max"></div>
+        </div>
+        <div class="topbar-title">
+          <h3>Bedwars Script</h3>
+          <span>OpenJaw · Open Source</span>
+        </div>
+        <div class="tag accent" style="margin-left: 8px;">v2.0</div>
+        <div class="tag">Premium</div>
+        <div class="theme-picker">
+          <div class="theme-dot active" data-set="emerald" style="background: #10B981;"></div>
+          <div class="theme-dot" data-set="amethyst" style="background: #8B5CF6;"></div>
+          <div class="theme-dot" data-set="sapphire" style="background: #3B82F6;"></div>
+          <div class="theme-dot" data-set="rose" style="background: #F43F5E;"></div>
+        </div>
+      </div>
+
+      <!-- Tab bar with search -->
+      <div class="tabbar">
+        <div class="tab active">
+          <span class="tab-icon">⚔</span>
+          Combat
+        </div>
+        <div class="tab">
+          <span class="tab-icon">◉</span>
+          Visuals
+        </div>
+        <div class="tab">
+          <span class="tab-icon">↗</span>
+          Move
+        </div>
+        <div class="tab">
+          <span class="tab-icon">◆</span>
+          World
+        </div>
+        <div class="tab">
+          <span class="tab-icon">✦</span>
+          Misc
+        </div>
+        <input class="search-input" placeholder="Search..." />
+      </div>
+
+      <!-- Content -->
+      <div class="content">
+        <div class="section">
+          <div class="section-title">
+            <span class="dot-accent"></span>
+            Offense
+          </div>
+          <div class="group">
+            <div class="row active">
+              <div class="row-icon">⚔</div>
+              <div class="row-body">
+                <div class="row-title">Killaura</div>
+                <div class="row-desc">Auto-attack nearby enemies within range</div>
+              </div>
+              <div class="switch"></div>
+            </div>
+            <div class="row">
+              <div class="row-icon">⊙</div>
+              <div class="row-body">
+                <div class="row-title">Reach</div>
+                <div class="row-desc">Extended melee attack distance</div>
+              </div>
+              <div class="switch"></div>
+            </div>
+            <div class="row">
+              <div class="row-icon">⌖</div>
+              <div class="row-body">
+                <div class="row-title">AimAssist</div>
+                <div class="row-desc">Smooth aim correction toward targets</div>
+              </div>
+              <div class="switch"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">
+            <span class="dot-accent"></span>
+            Defense
+          </div>
+          <div class="group">
+            <div class="row">
+              <div class="row-icon">🛡</div>
+              <div class="row-body">
+                <div class="row-title">Anti-Knockback</div>
+                <div class="row-desc">Resist knockback effects</div>
+              </div>
+              <div class="switch"></div>
+            </div>
+            <div class="row">
+              <div class="row-icon">⚡</div>
+              <div class="row-body">
+                <div class="row-title">AutoBlock</div>
+                <div class="row-desc">Block incoming attacks automatically</div>
+              </div>
+              <div class="checkbox"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">
+            <span class="dot-accent"></span>
+            Range
+          </div>
+          <div class="group">
+            <div class="slider-row">
+              <div class="slider-header">
+                <div class="slider-title">Attack Range</div>
+                <div class="slider-value">18 studs</div>
+              </div>
+              <div class="slider-track">
+                <div class="slider-fill"></div>
+                <div class="slider-knob"></div>
+              </div>
+            </div>
+            <div class="slider-row">
+              <div class="slider-header">
+                <div class="slider-title">Attack Speed (ms)</div>
+                <div class="slider-value">120</div>
+              </div>
+              <div class="slider-track">
+                <div class="slider-fill" style="width: 45%;"></div>
+                <div class="slider-knob" style="left: 45%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">
+            <span class="dot-accent"></span>
+            Mode
+          </div>
+          <div class="group">
+            <div class="dropdown">
+              <div>
+                <div class="row-title">Target Filter</div>
+                <div class="row-desc">Who killaura should attack</div>
+              </div>
+              <div class="dropdown-value">All Players ▾</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status bar -->
+      <div class="statusbar">
+        <div class="stat stat-fps">
+          <span class="stat-dot"></span>
+          60 FPS
+        </div>
+        <div class="stat stat-ping">
+          <span class="stat-dot"></span>
+          42ms
+        </div>
+        <div class="stat stat-active">
+          <span class="stat-dot"></span>
+          3 / 14 ON
+        </div>
+        <button class="panic">STOP</button>
+      </div>
+    </div>
+
+    <!-- FAB (draggable, gradient, glow) -->
+    <div class="fab" id="fab" title="Tap to open · Hold to drag">
+      <span class="fab-icon">⚡</span>
+    </div>
+  </div>
+</div>
+
+<!-- Theme variants -->
+<div class="demo-section">
+  <h2>2. Theme Presets — Emerald · Amethyst · Sapphire · Rose</h2>
+  <div class="variant-grid">
+    <div class="variant" data-theme-card="emerald">
+      <div class="variant-header">
+        <div>
+          <div class="variant-name">Emerald</div>
+          <div class="variant-subtitle">Default · Your color</div>
+        </div>
+        <div class="theme-dot active" style="background: #10B981; pointer-events: none;"></div>
+      </div>
+      <div class="variant-body" data-theme="emerald">
+        <div class="mini-window">
+          <div class="mini-topbar">
+            <div class="dot close"></div>
+            <div class="dot min"></div>
+            <div class="dot max"></div>
+            <div class="title">Bedwars Script · Emerald</div>
+          </div>
+          <div class="mini-tabbar">
+            <div class="mini-tab active">⚔ Combat</div>
+            <div class="mini-tab">◉ Visuals</div>
+            <div class="mini-tab">↗ Move</div>
+            <div class="mini-tab">◆ World</div>
+          </div>
+          <div class="mini-content">
+            <div class="row active" style="padding: 6px 8px; font-size: 10px;">
+              <div class="row-icon" style="width: 18px; height: 18px; font-size: 10px;">⚔</div>
+              <div class="row-body"><div class="row-title" style="font-size: 11px;">Killaura</div></div>
+              <div class="switch" style="width: 28px; height: 16px;"><div style="position:absolute; top:1px; left:1px; width:14px; height:14px; border-radius:50%; background:white;"></div></div>
+            </div>
+            <div class="row" style="padding: 6px 8px; font-size: 10px;">
+              <div class="row-icon" style="width: 18px; height: 18px; font-size: 10px;">⊙</div>
+              <div class="row-body"><div class="row-title" style="font-size: 11px;">Reach</div></div>
+              <div class="switch" style="width: 28px; height: 16px;"></div>
+            </div>
+            <div class="slider-row" style="padding: 8px;">
+              <div class="slider-title" style="font-size: 11px;">Range</div>
+              <div class="slider-track" style="margin-top: 4px;">
+                <div class="slider-fill" style="width: 65%;"></div>
+                <div class="slider-knob" style="left: 65%; width: 10px; height: 10px;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mini-statusbar">
+            <span><span class="mini-stat-dot"></span>60 FPS</span>
+            <span><span class="mini-stat-dot" style="background: #3B82F6;"></span>42ms</span>
+            <span><span class="mini-stat-dot" style="background: #F5B700;"></span>1/14</span>
+            <span class="mini-panic">STOP</span>
+          </div>
+        </div>
+        <div class="mini-fab">⚡</div>
+      </div>
+    </div>
+
+    <div class="variant" data-theme-card="amethyst">
+      <div class="variant-header">
+        <div>
+          <div class="variant-name">Amethyst</div>
+          <div class="variant-subtitle">Cosmic purple</div>
+        </div>
+        <div class="theme-dot" style="background: #8B5CF6; pointer-events: none;"></div>
+      </div>
+      <div class="variant-body" data-theme="amethyst">
+        <div class="mini-window">
+          <div class="mini-topbar">
+            <div class="dot close"></div>
+            <div class="dot min"></div>
+            <div class="dot max"></div>
+            <div class="title">Bedwars Script · Amethyst</div>
+          </div>
+          <div class="mini-tabbar">
+            <div class="mini-tab active">⚔ Combat</div>
+            <div class="mini-tab">◉ Visuals</div>
+            <div class="mini-tab">↗ Move</div>
+            <div class="mini-tab">◆ World</div>
+          </div>
+          <div class="mini-content">
+            <div class="row active" style="padding: 6px 8px; font-size: 10px;">
+              <div class="row-icon" style="width: 18px; height: 18px; font-size: 10px;">⚔</div>
+              <div class="row-body"><div class="row-title" style="font-size: 11px;">Killaura</div></div>
+              <div class="switch" style="width: 28px; height: 16px;"><div style="position:absolute; top:1px; left:1px; width:14px; height:14px; border-radius:50%; background:white;"></div></div>
+            </div>
+            <div class="row" style="padding: 6px 8px; font-size: 10px;">
+              <div class="row-icon" style="width: 18px; height: 18px; font-size: 10px;">⊙</div>
+              <div class="row-body"><div class="row-title" style="font-size: 11px;">Reach</div></div>
+              <div class="switch" style="width: 28px; height: 16px;"></div>
+            </div>
+            <div class="slider-row" style="padding: 8px;">
+              <div class="slider-title" style="font-size: 11px;">Range</div>
+              <div class="slider-track" style="margin-top: 4px;">
+                <div class="slider-fill" style="width: 65%;"></div>
+                <div class="slider-knob" style="left: 65%; width: 10px; height: 10px;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mini-statusbar">
+            <span><span class="mini-stat-dot"></span>60 FPS</span>
+            <span><span class="mini-stat-dot" style="background: #3B82F6;"></span>42ms</span>
+            <span><span class="mini-stat-dot" style="background: #F5B700;"></span>1/14</span>
+            <span class="mini-panic">STOP</span>
+          </div>
+        </div>
+        <div class="mini-fab">⚡</div>
+      </div>
+    </div>
+
+    <div class="variant" data-theme-card="sapphire">
+      <div class="variant-header">
+        <div>
+          <div class="variant-name">Sapphire</div>
+          <div class="variant-subtitle">Cool blue</div>
+        </div>
+        <div class="theme-dot" style="background: #3B82F6; pointer-events: none;"></div>
+      </div>
+      <div class="variant-body" data-theme="sapphire">
+        <div class="mini-window">
+          <div class="mini-topbar">
+            <div class="dot close"></div>
+            <div class="dot min"></div>
+            <div class="dot max"></div>
+            <div class="title">Bedwars Script · Sapphire</div>
+          </div>
+          <div class="mini-tabbar">
+            <div class="mini-tab active">⚔ Combat</div>
+            <div class="mini-tab">◉ Visuals</div>
+            <div class="mini-tab">↗ Move</div>
+            <div class="mini-tab">◆ World</div>
+          </div>
+          <div class="mini-content">
+            <div class="row active" style="padding: 6px 8px; font-size: 10px;">
+              <div class="row-icon" style="width: 18px; height: 18px; font-size: 10px;">⚔</div>
+              <div class="row-body"><div class="row-title" style="font-size: 11px;">Killaura</div></div>
+              <div class="switch" style="width: 28px; height: 16px;"><div style="position:absolute; top:1px; left:1px; width:14px; height:14px; border-radius:50%; background:white;"></div></div>
+            </div>
+            <div class="row" style="padding: 6px 8px; font-size: 10px;">
+              <div class="row-icon" style="width: 18px; height: 18px; font-size: 10px;">⊙</div>
+              <div class="row-body"><div class="row-body"><div class="row-title" style="font-size: 11px;">Reach</div></div>
+              <div class="switch" style="width: 28px; height: 16px;"></div>
+            </div>
+            <div class="slider-row" style="padding: 8px;">
+              <div class="slider-title" style="font-size: 11px;">Range</div>
+              <div class="slider-track" style="margin-top: 4px;">
+                <div class="slider-fill" style="width: 65%;"></div>
+                <div class="slider-knob" style="left: 65%; width: 10px; height: 10px;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mini-statusbar">
+            <span><span class="mini-stat-dot"></span>60 FPS</span>
+            <span><span class="mini-stat-dot" style="background: #3B82F6;"></span>42ms</span>
+            <span><span class="mini-stat-dot" style="background: #F5B700;"></span>1/14</span>
+            <span class="mini-panic">STOP</span>
+          </div>
+        </div>
+        <div class="mini-fab">⚡</div>
+      </div>
+    </div>
+
+    <div class="variant" data-theme-card="rose">
+      <div class="variant-header">
+        <div>
+          <div class="variant-name">Rose</div>
+          <div class="variant-subtitle">Hot pink</div>
+        </div>
+        <div class="theme-dot" style="background: #F43F5E; pointer-events: none;"></div>
+      </div>
+      <div class="variant-body" data-theme="rose">
+        <div class="mini-window">
+          <div class="mini-topbar">
+            <div class="dot close"></div>
+            <div class="dot min"></div>
+            <div class="dot max"></div>
+            <div class="title">Bedwars Script · Rose</div>
+          </div>
+          <div class="mini-tabbar">
+            <div class="mini-tab active">⚔ Combat</div>
+            <div class="mini-tab">◉ Visuals</div>
+            <div class="mini-tab">↗ Move</div>
+            <div class="mini-tab">◆ World</div>
+          </div>
+          <div class="mini-content">
+            <div class="row active" style="padding: 6px 8px; font-size: 10px;">
+              <div class="row-icon" style="width: 18px; height: 18px; font-size: 10px;">⚔</div>
+              <div class="row-body"><div class="row-title" style="font-size: 11px;">Killaura</div></div>
+              <div class="switch" style="width: 28px; height: 16px;"><div style="position:absolute; top:1px; left:1px; width:14px; height:14px; border-radius:50%; background:white;"></div></div>
+            </div>
+            <div class="row" style="padding: 6px 8px; font-size: 10px;">
+              <div class="row-icon" style="width: 18px; height: 18px; font-size: 18px; font-size: 10px;">⊙</div>
+              <div class="row-body"><div class="row-title" style="font-size: 11px;">Reach</div></div>
+              <div class="switch" style="width: 28px; height: 16px;"></div>
+            </div>
+            <div class="slider-row" style="padding: 8px;">
+              <div class="slider-title" style="font-size: 11px;">Range</div>
+              <div class="slider-track" style="margin-top: 4px;">
+                <div class="slider-fill" style="width: 65%;"></div>
+                <div class="slider-knob" style="left: 65%; width: 10px; height: 10px;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mini-statusbar">
+            <span><span class="mini-stat-dot"></span>60 FPS</span>
+            <span><span class="mini-stat-dot" style="background: #3B82F6;"></span>42ms</span>
+            <span><span class="mini-stat-dot" style="background: #F5B700;"></span>1/14</span>
+            <span class="mini-panic">STOP</span>
+          </div>
+        </div>
+        <div class="mini-fab">⚡</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Design notes -->
+<div class="notes">
+  <h2>3. Design Decisions & References</h2>
+  <p style="color: var(--text-secondary); line-height: 1.6; font-size: 13px;">
+    This v2.0 reskin takes inspiration from <strong style="color: var(--accent);">WindUI</strong> (Mac topbar, OpenButton with Draggable, Group/Tag/Space), <strong style="color: var(--accent);">Maclib</strong> (sectioned layout, slider+value), <strong style="color: var(--accent);">Modern Sirius</strong> (header + info cards), and <strong style="color: var(--accent);">Abyss Script</strong> (toggle rows with description, slider with value badge). Combined into a single, opinionated design that matches the user's brand.
+  </p>
+  <div class="notes-grid">
+    <div class="note-card">
+      <h3>Window & Topbar</h3>
+      <ul>
+        <li>Mac-style traffic lights (red/yellow/green)</li>
+        <li>Drag handle: the entire topbar (or anywhere outside elements)</li>
+        <li>Title + subtitle centered</li>
+        <li>Tag pills (v2.0, Premium) right of title</li>
+        <li>Theme picker (4 swatches) far right</li>
+      </ul>
+    </div>
+    <div class="note-card">
+      <h3>Tabs & Search</h3>
+      <ul>
+        <li>Icon + label, underline indicator on active</li>
+        <li>Real-time search filters tabs</li>
+        <li>Accent glow on active tab indicator</li>
+        <li>Smooth color transition on hover/active</li>
+      </ul>
+    </div>
+    <div class="note-card">
+      <h3>Components</h3>
+      <ul>
+        <li>Toggle (Switch) + Checkbox variant</li>
+        <li>Slider with value badge (right-aligned)</li>
+        <li>Dropdown with single + multi-select</li>
+        <li>Input field + Textarea</li>
+        <li>Colorpicker + Keybind</li>
+        <li>Image + Paragraph (rich content)</li>
+      </ul>
+    </div>
+    <div class="note-card">
+      <h3>FAB (OpenButton)</h3>
+      <ul>
+        <li>Floating bottom-right, gradient fill</li>
+        <li>Glow halo + 4px inner shadow</li>
+        <li>Tap → open menu</li>
+        <li>Hold → drag to reposition (8pt threshold)</li>
+        <li>Snap to edges on release</li>
+      </ul>
+    </div>
+    <div class="note-card">
+      <h3>Status bar</h3>
+      <ul>
+        <li>FPS (emerald), Ping (blue), Active count (gold)</li>
+        <li>STOP panic button (red, glow on hover)</li>
+        <li>Live updating every 500ms</li>
+        <li>Always visible at bottom</li>
+      </ul>
+    </div>
+    <div class="note-card">
+      <h3>Theme presets</h3>
+      <ul>
+        <li>Emerald (default, your color)</li>
+        <li>Amethyst (cosmic purple)</li>
+        <li>Sapphire (cool blue)</li>
+        <li>Rose (hot pink)</li>
+        <li>All tokens swap in real time</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+// Theme picker
+const themeDots = document.querySelectorAll('.theme-picker .theme-dot');
+themeDots.forEach(dot => {
+  dot.addEventListener('click', () => {
+    themeDots.forEach(d => d.classList.remove('active'));
+    dot.classList.add('active');
+    const theme = dot.dataset.set;
+    document.body.dataset.theme = theme;
+  });
+});
+
+// Window drag (just the topbar — show a visual cue)
+const topbar = document.querySelector('.topbar');
+let isDragging = false;
+topbar.addEventListener('mousedown', () => {
+  topbar.style.cursor = 'grabbing';
+  isDragging = true;
+});
+topbar.addEventListener('mouseup', () => {
+  topbar.style.cursor = 'grab';
+  isDragging = false;
+});
+topbar.addEventListener('mouseleave', () => {
+  topbar.style.cursor = 'grab';
+  isDragging = false;
+});
+
+// FAB drag visual cue
+const fab = document.getElementById('fab');
+fab.addEventListener('mousedown', () => {
+  fab.style.transform = 'scale(0.95)';
+});
+fab.addEventListener('mouseup', () => {
+  fab.style.transform = 'scale(1)';
+});
+fab.addEventListener('mouseleave', () => {
+  fab.style.transform = 'scale(1)';
+});
+
+// Tabs click
+const tabs = document.querySelectorAll('.tab');
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+  });
+});
+
+// Toggle rows click
+const rows = document.querySelectorAll('.row');
+rows.forEach(row => {
+  row.addEventListener('click', () => {
+    row.classList.toggle('active');
+  });
+});
+</script>
+</body>
+</html>

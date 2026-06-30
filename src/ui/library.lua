@@ -469,7 +469,10 @@ function Library:CreateWindow(settings)
   win.Size = UDim2.fromOffset(_d.W, _d.H)
   win.Position = UDim2.fromOffset(_d.X, _d.Y)
 
-  -- ─── Header (logo + title + search + close) ───────────────────────
+  -- ─── Mac-style Topbar (v2.0) ────────────────────────────────────────
+  -- Inspired by WindUI's Mac topbar:
+  --   [close] [min] [max] ── Title ── Subtitle ── [tags] [theme picker]
+  -- The entire topbar is the drag handle.
   local header = Instance.new("Frame")
   header.Name = "Header"
   header.Parent = win
@@ -481,10 +484,7 @@ function Library:CreateWindow(settings)
   header.BorderSizePixel = 0
   applyGlass(header, { radius = 0 })
 
-  -- v2.0: B047 — make the header a drag handle. The user wanted
-  -- the window to be draggable like Delta/Codex executors.
-  -- The dragger uses an 8pt threshold (B003) to prevent accidental
-  -- drags on touch-down. Snap-to-edge on release.
+  -- v2.0: B047 — make the header a drag handle.
   if Dragger and Dragger.enable then
     pcall(function()
       Dragger.enable(win, {
@@ -502,85 +502,164 @@ function Library:CreateWindow(settings)
   headerStroke.Thickness = 1
   headerStroke.Parent = header
 
-  local logoBtn = Instance.new("TextButton")
-  logoBtn.Parent = header
-  logoBtn.BackgroundTransparency = 1
-  logoBtn.Size = UDim2.new(0, Theme.Touch.HeaderHeight, 1, 0)
-  logoBtn.Position = UDim2.new(0, 0, 0, 0)
-  -- Visual audit: was Icons.FabIcon (⚡) — duplicates the FAB icon visually.
-  -- Changed to ✦ (sparkle) — different glyph, no user confusion.
-  logoBtn.Text = "✦"
-  logoBtn.TextColor3 = Theme.Color.Accent
-  logoBtn.Font = Theme.Font.Icon
-  logoBtn.TextSize = 22
-  logoBtn.AutoButtonColor = false
-  logoBtn.ZIndex = Theme.Z.WindowContent + 1
+  -- ─── Traffic lights (red/yellow/green) ─────────────────────────────────
+  local trafficLights = Instance.new("Frame")
+  trafficLights.Parent = header
+  trafficLights.Name = "TrafficLights"
+  trafficLights.BackgroundTransparency = 1
+  trafficLights.Size = UDim2.fromOffset(60, Theme.Touch.HeaderHeight)
+  trafficLights.Position = UDim2.new(0, 12, 0, 0)
+  trafficLights.ZIndex = Theme.Z.WindowContent + 1
 
-  -- Visual audit: was "BEDWARS" (all-caps) — reads aggressive. Title case "Bedwars"
-  -- matches jensen-vvs / grannsjovvs brand voice.
-  local title = makeLabel(header, settings.Name or "Bedwars", {
-    position = UDim2.new(0, Theme.Touch.HeaderHeight + Theme.Space.SM, 0, 0),
-    font = Theme.Font.Heading, textSize = Theme.Size.Title,
-    color = Theme.Color.TextPrimary,
-  })
-  title.Size = UDim2.new(0.4, 0, 1, 0)
+  local function makeTrafficDot(color, name, xOffset)
+    local dot = Instance.new("TextButton")
+    dot.Name = name
+    dot.Parent = trafficLights
+    dot.Size = UDim2.fromOffset(12, 12)
+    dot.Position = UDim2.new(0, xOffset, 0.5, -6)
+    dot.BackgroundColor3 = color
+    dot.Text = ""
+    dot.BorderSizePixel = 0
+    dot.AutoButtonColor = false
+    dot.ZIndex = Theme.Z.WindowContent + 2
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = dot
+    return dot
+  end
+  makeTrafficDot(Color3.fromRGB(255, 95, 87), "Close", 0)    -- red
+  makeTrafficDot(Color3.fromRGB(254, 188, 46), "Min", 20)     -- yellow
+  makeTrafficDot(Color3.fromRGB(40, 200, 64), "Max", 40)       -- green
 
-  local searchBg = Instance.new("Frame")
-  searchBg.Parent = header
-  searchBg.BackgroundColor3 = Theme.Color.SurfaceInset
-  searchBg.BackgroundTransparency = Theme.Alpha.GlassInput
-  searchBg.Size = UDim2.new(0, 140, 0, Theme.Touch.SearchHeight)
-  searchBg.Position = UDim2.new(1, -Theme.Space.MD - 44 - 8 - 140, 0.5, -Theme.Touch.SearchHeight/2)
-  searchBg.ZIndex = Theme.Z.WindowContent + 1
-  searchBg.BorderSizePixel = 0
-  applyGlass(searchBg, { radius = Theme.Radius.Input })
-
-  local searchIcon = Instance.new("TextLabel")
-  searchIcon.Parent = searchBg
-  searchIcon.BackgroundTransparency = 1
-  searchIcon.Size = UDim2.new(0, Theme.Touch.SearchHeight, 1, 0)
-  searchIcon.Position = UDim2.new(0, Theme.Space.SM, 0, 0)
-  -- Visual audit: was Icons.Unicode.Search (⌕) — renders inconsistently.
-  -- Removed the icon — text-only placeholder is more reliable.
-  searchIcon.Text = ""
-  searchIcon.TextColor3 = Theme.Color.TextMuted
-  searchIcon.Font = Theme.Font.IconSmall
-  searchIcon.TextSize = 14
-  searchIcon.TextXAlignment = Enum.TextXAlignment.Center
-  searchIcon.TextYAlignment = Enum.TextYAlignment.Center
-  searchIcon.ZIndex = Theme.Z.WindowContent + 2
-
-  local searchBox = Instance.new("TextBox")
-  searchBox.Parent = searchBg
-  searchBox.BackgroundTransparency = 1
-  searchBox.Size = UDim2.new(1, -Theme.Touch.SearchHeight - 8, 1, 0)
-  searchBox.Position = UDim2.new(0, Theme.Touch.SearchHeight + 4, 0, 0)
-  searchBox.Text = ""
-  searchBox.PlaceholderText = "Search…"
-  searchBox.PlaceholderColor3 = Theme.Color.TextMuted
-  searchBox.TextColor3 = Theme.Color.TextPrimary
-  searchBox.Font = Theme.Font.Body
-  searchBox.TextSize = Theme.Size.Body
-  searchBox.TextXAlignment = Enum.TextXAlignment.Left
-  searchBox.ClearTextOnFocus = false
-  searchBox.ZIndex = Theme.Z.WindowContent + 2
-  self._searchBox = searchBox
-
-  local closeBtn = Instance.new("TextButton")
-  closeBtn.Parent = header
-  closeBtn.BackgroundTransparency = 1
-  closeBtn.Size = UDim2.fromOffset(44, 44)
-  closeBtn.Position = UDim2.new(1, -44 - Theme.Space.SM, 0.5, -22)
-  closeBtn.Text = Icons.Unicode.Close
-  closeBtn.TextColor3 = Theme.Color.TextSecondary
-  closeBtn.Font = Theme.Font.Icon
-  closeBtn.TextSize = 20
-  closeBtn.ZIndex = Theme.Z.WindowContent + 1
-  closeBtn.AutoButtonColor = false
-  Input.onTap(closeBtn, function()
-    Input.haptic(0.3, 0.08)
+  -- Close button functionality
+  trafficLights.Close.MouseButton1Click:Connect(function()
     self:SetVisible(false)
   end)
+
+  -- ─── Title + Subtitle (centered) ──────────────────────────────────────
+  local titleGroup = Instance.new("Frame")
+  titleGroup.Parent = header
+  titleGroup.Name = "TitleGroup"
+  titleGroup.BackgroundTransparency = 1
+  titleGroup.Size = UDim2.new(1, -180, 1, 0)  -- leave room for traffic lights + theme picker
+  titleGroup.Position = UDim2.new(0, 80, 0, 0)
+  titleGroup.ZIndex = Theme.Z.WindowContent + 1
+
+  local title = Instance.new("TextLabel")
+  title.Parent = titleGroup
+  title.Name = "Title"
+  title.BackgroundTransparency = 1
+  title.Size = UDim2.new(1, 0, 0, 18)
+  title.Position = UDim2.new(0, 0, 0, 6)
+  title.Font = Theme.Font.Heading
+  title.TextSize = Theme.Size.Title
+  title.Text = settings.Name or "Bedwars"
+  title.TextColor3 = Theme.Color.TextPrimary
+  title.TextXAlignment = Enum.TextXAlignment.Center
+  title.TextYAlignment = Enum.TextYAlignment.Center
+  title.ZIndex = Theme.Z.WindowContent + 2
+
+  local subtitle = Instance.new("TextLabel")
+  subtitle.Parent = titleGroup
+  subtitle.Name = "Subtitle"
+  subtitle.BackgroundTransparency = 1
+  subtitle.Size = UDim2.new(1, 0, 0, 12)
+  subtitle.Position = UDim2.new(0, 0, 0, 24)
+  subtitle.Font = Theme.Font.Caption
+  subtitle.TextSize = Theme.Size.Caption
+  subtitle.Text = settings.Subtitle or "OpenJaw · Open Source"
+  subtitle.TextColor3 = Theme.Color.TextMuted
+  subtitle.TextXAlignment = Enum.TextXAlignment.Center
+  subtitle.TextYAlignment = Enum.TextYAlignment.Center
+  subtitle.ZIndex = Theme.Z.WindowContent + 2
+
+  -- ─── Tag pills (v2.0, "v2.0" / "Premium") ─────────────────────────────
+  local tagPills = Instance.new("Frame")
+  tagPills.Parent = header
+  tagPills.Name = "TagPills"
+  tagPills.BackgroundTransparency = 1
+  tagPills.Size = UDim2.new(0, 80, 0, 20)
+  tagPills.Position = UDim2.new(1, -100, 0.5, -10)
+  tagPills.ZIndex = Theme.Z.WindowContent + 1
+
+  local function makeTag(text, accent, xOffset)
+    local tag = Instance.new("TextLabel")
+    tag.Parent = tagPills
+    tag.Size = UDim2.fromOffset(40, 18)
+    tag.Position = UDim2.new(0, xOffset, 0, 0)
+    tag.BackgroundColor3 = accent and Theme.Color.Accent or Color3.fromRGB(255, 255, 255)
+    tag.BackgroundTransparency = accent and 0.78 or 0.92
+    tag.BorderSizePixel = 0
+    tag.Font = Theme.Font.Label
+    tag.TextSize = 9
+    tag.Text = text
+    tag.TextColor3 = accent and Theme.Color.Accent or Theme.Color.TextSecondary
+    tag.TextXAlignment = Enum.TextXAlignment.Center
+    tag.TextYAlignment = Enum.TextYAlignment.Center
+    tag.ZIndex = Theme.Z.WindowContent + 2
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 9)
+    corner.Parent = tag
+    return tag
+  end
+  makeTag("v2.0", true, 0)
+  makeTag("Premium", false, 42)
+
+  -- ─── Theme picker (4 swatches) ────────────────────────────────────────
+  local themePicker = Instance.new("Frame")
+  themePicker.Parent = header
+  themePicker.Name = "ThemePicker"
+  themePicker.BackgroundTransparency = 1
+  themePicker.Size = UDim2.fromOffset(70, 16)
+  themePicker.Position = UDim2.new(1, -16, 0.5, -8)
+  themePicker.ZIndex = Theme.Z.WindowContent + 1
+  themePicker.AnchorPoint = Vector2.new(1, 0)
+
+  local themeColors = {
+    { name = "Emerald",  color = Color3.fromRGB(16, 185, 129) },
+    { name = "Amethyst", color = Color3.fromRGB(139, 92, 246) },
+    { name = "Sapphire", color = Color3.fromRGB(59, 130, 246) },
+    { name = "Rose",     color = Color3.fromRGB(244, 63, 94) },
+  }
+
+  for i, t in ipairs(themeColors) do
+    local dot = Instance.new("TextButton")
+    dot.Name = t.name
+    dot.Parent = themePicker
+    dot.Size = UDim2.fromOffset(12, 12)
+    dot.Position = UDim2.new(0, (i - 1) * 16, 0, 0)
+    dot.BackgroundColor3 = t.color
+    dot.BorderSizePixel = 0
+    dot.Text = ""
+    dot.AutoButtonColor = false
+    dot.ZIndex = Theme.Z.WindowContent + 2
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = dot
+
+    -- v2.0: theme switching. Click a swatch → Theme.apply(name)
+    -- → real-time color swap on existing UI elements.
+    dot.MouseButton1Click:Connect(function()
+      Theme.apply(t.name)
+      -- Visually mark the active swatch with a ring
+      for _, child in ipairs(themePicker:GetChildren()) do
+        if child:IsA("TextButton") then
+          pcall(function() child.UIStroke.Thickness = 0 end)
+        end
+      end
+      local stroke = dot:FindFirstChildOfClass("UIStroke")
+      if not stroke then
+        stroke = Instance.new("UIStroke")
+        stroke.Color = Color3.fromRGB(255, 255, 255)
+        stroke.Thickness = 1.5
+        stroke.Parent = dot
+      else
+        stroke.Thickness = 1.5
+      end
+      -- Animate the swap with a brief haptic + accent pulse
+      pcall(function() Input.haptic(0.2, 0.04) end)
+    end)
+  end
 
   -- ─── Top tab bar ───────────────────────────────────────────────────
   local tabBar = Instance.new("ScrollingFrame")
@@ -603,6 +682,35 @@ function Library:CreateWindow(settings)
   tabBarStroke.Transparency = Theme.Alpha.Border
   tabBarStroke.Thickness = 1
   tabBarStroke.Parent = tabBar
+
+  -- v2.0: Search box in tab bar (WindUI-style).
+  -- Real-time filter: as the user types, tab visibility is toggled.
+  local tabSearchBg = Instance.new("Frame")
+  tabSearchBg.Parent = tabBar
+  tabSearchBg.Name = "TabSearch"
+  tabSearchBg.BackgroundColor3 = Theme.Color.SurfaceInset
+  tabSearchBg.BackgroundTransparency = Theme.Alpha.GlassInput
+  tabSearchBg.Size = UDim2.fromOffset(120, 28)
+  tabSearchBg.Position = UDim2.new(1, -132, 0.5, -14)
+  tabSearchBg.ZIndex = Theme.Z.WindowContent + 1
+  tabSearchBg.BorderSizePixel = 0
+  applyGlass(tabSearchBg, { radius = 8 })
+
+  local tabSearchBox = Instance.new("TextBox")
+  tabSearchBox.Parent = tabSearchBg
+  tabSearchBox.BackgroundTransparency = 1
+  tabSearchBox.Size = UDim2.new(1, -16, 1, 0)
+  tabSearchBox.Position = UDim2.new(0, 8, 0, 0)
+  tabSearchBox.Text = ""
+  tabSearchBox.PlaceholderText = "Search..."
+  tabSearchBox.PlaceholderColor3 = Theme.Color.TextMuted
+  tabSearchBox.TextColor3 = Theme.Color.TextPrimary
+  tabSearchBox.Font = Theme.Font.Body
+  tabSearchBox.TextSize = Theme.Size.Body
+  tabSearchBox.TextXAlignment = Enum.TextXAlignment.Left
+  tabSearchBox.ClearTextOnFocus = false
+  tabSearchBox.ZIndex = Theme.Z.WindowContent + 2
+  self._tabSearchBox = tabSearchBox
 
   -- ─── Content area ──────────────────────────────────────────────────
   local contentArea = Instance.new("ScrollingFrame")
@@ -845,18 +953,12 @@ function Library:CreateTab(name, iconSpec)
   btn.ZIndex = Theme.Z.WindowContent + 1
   btn.LayoutOrder = #self.tabs + 1
 
-  local icon = Instance.new("TextLabel")
-  icon.Parent = btn
-  icon.BackgroundTransparency = 1
-  icon.Size = UDim2.new(0, Theme.Size.Icon, 0, Theme.Size.Icon)
-  icon.Position = UDim2.new(0, Theme.Space.MD, 0.5, -Theme.Size.Icon/2)
-  icon.Font = Theme.Font.Icon
-  icon.TextSize = Theme.Size.Icon
-  icon.Text = tostring(iconSpec or "◆")
-  icon.TextColor3 = Theme.Color.TabInactive
-  icon.TextXAlignment = Enum.TextXAlignment.Center
-  icon.TextYAlignment = Enum.TextYAlignment.Center
-  icon.ZIndex = Theme.Z.WindowContent + 2
+  -- v2.0: B050 — use Icons.apply (pre-registered rbxassetid) for tabs.
+  -- Falls back to Unicode glyph if no rbxassetid is registered.
+  local iconInstance = Icons.apply(btn, iconSpec, Theme.Color.TabInactive, Theme.Size.Icon)
+  if iconInstance then
+    iconInstance.Position = UDim2.new(0, Theme.Space.MD, 0.5, -Theme.Size.Icon/2)
+  end
 
   local label = makeLabel(btn, name, {
     position = UDim2.new(0, Theme.Space.MD + Theme.Size.Icon + Theme.Space.SM, 0, 0),
@@ -887,16 +989,20 @@ function Library:CreateTab(name, iconSpec)
 
   tab.page = page
   tab.button = btn
-  tab.icon = icon
+  tab.icon = iconInstance
   tab.label = label
   tab.indicator = indicator
   tab.list = list
 
   if #self.tabs == 0 then
     self.pageLayout:JumpTo(page)
-    -- Visual audit: was TabActive (emerald) for both icon and label — created
-    -- triple-green noise. Now: icon ACCENT, label WHITE, indicator ACCENT.
-    icon.TextColor3 = Theme.Color.TabActive
+    -- v2.0: iconInstance is now an ImageLabel (from Icons.apply), not
+    -- a TextLabel. The color is set via ImageColor3, not TextColor3.
+    if iconInstance and iconInstance:IsA("ImageLabel") then
+      iconInstance.ImageColor3 = Theme.Color.TabActive
+    elseif iconInstance then
+      pcall(function() iconInstance.TextColor3 = Theme.Color.TabActive end)
+    end
     label.TextColor3 = Theme.Color.TextPrimary
     indicator.Visible = true
   end
@@ -908,20 +1014,68 @@ end
 
 -- ─── Section ───────────────────────────────────────────────────────────────
 
-function Library._createSection(tab, name)
+function Library._createSection(tab, name, desc)
   local section = {}
   section.elements = {}
 
-  -- Visual audit: section title was Accent (emerald) — competed with active tab
-  -- indicator. Now: Gold (secondary) — reads as "section header" not "active state".
-  local title = makeLabel(tab.page, name, {
-    position = UDim2.new(0, Theme.Space.XS, 0, 0),
-    font = Theme.Font.Heading, textSize = Theme.Size.Heading,
-    color = Theme.Color.Gold,
-  })
-  title.Size = UDim2.new(1, -Theme.Space.XS * 2, 0, 24)
-  title.LayoutOrder = #tab.sections * 1000
+  -- v2.0: Section header with optional desc (Maclib / WindUI style).
+  -- Title is small uppercase with accent dot, desc is muted subtitle.
+  local sectionHeader = Instance.new("Frame")
+  sectionHeader.Parent = tab.page
+  sectionHeader.Name = name .. "Header"
+  sectionHeader.BackgroundTransparency = 1
+  sectionHeader.Size = UDim2.new(1, -Theme.Space.XS * 2, 0, desc and 36 or 24)
+  sectionHeader.Position = UDim2.new(0, Theme.Space.XS, 0, 0)
+  sectionHeader.LayoutOrder = #tab.sections * 1000
+  sectionHeader.ZIndex = Theme.Z.WindowContent
+  sectionHeader.BorderSizePixel = 0
 
+  -- Accent dot
+  local accentDot = Instance.new("Frame")
+  accentDot.Parent = sectionHeader
+  accentDot.Name = "AccentDot"
+  accentDot.Size = UDim2.fromOffset(4, 4)
+  accentDot.Position = UDim2.new(0, 0, 0, 8)
+  accentDot.BackgroundColor3 = Theme.Color.Accent
+  accentDot.BorderSizePixel = 0
+  accentDot.ZIndex = sectionHeader.ZIndex + 1
+  local dc = Instance.new("UICorner")
+  dc.CornerRadius = UDim.new(1, 0)
+  dc.Parent = accentDot
+
+  -- Section title (uppercase tracked)
+  local title = Instance.new("TextLabel")
+  title.Parent = sectionHeader
+  title.Name = "Title"
+  title.BackgroundTransparency = 1
+  title.Size = UDim2.new(1, -12, 0, 14)
+  title.Position = UDim2.new(0, 12, 0, 2)
+  title.Font = Theme.Font.Label
+  title.TextSize = Theme.Size.Caption + 1  -- 11
+  title.Text = string.upper(tostring(name or ""))
+  title.TextColor3 = Theme.Color.TextMuted
+  title.TextXAlignment = Enum.TextXAlignment.Left
+  title.TextYAlignment = Enum.TextYAlignment.Center
+  title.ZIndex = sectionHeader.ZIndex + 1
+
+  -- Optional desc
+  if desc and desc ~= "" then
+    local descLbl = Instance.new("TextLabel")
+    descLbl.Parent = sectionHeader
+    descLbl.Name = "Desc"
+    descLbl.BackgroundTransparency = 1
+    descLbl.Size = UDim2.new(1, 0, 0, 14)
+    descLbl.Position = UDim2.new(0, 12, 0, 18)
+    descLbl.Font = Theme.Font.Caption
+    descLbl.TextSize = Theme.Size.Caption
+    descLbl.Text = tostring(desc)
+    descLbl.TextColor3 = Theme.Color.TextDisabled or Theme.Color.TextMuted
+    descLbl.TextXAlignment = Enum.TextXAlignment.Left
+    descLbl.TextYAlignment = Enum.TextYAlignment.Center
+    descLbl.ZIndex = sectionHeader.ZIndex + 1
+  end
+
+  -- Container (the "card" that holds rows)
   local container = Instance.new("Frame")
   container.Name = name .. "Container"
   container.Parent = tab.page
@@ -958,30 +1112,55 @@ end
 
 function Library._createToggle(section, opts)
   opts = opts or {}
+
+  -- v2.0: Toggle now supports desc (subtitle) and uses the new
+  -- Icons.apply system. Row height adapts: 44pt for desc-less,
+  -- 56pt for desc. Matches the Abyss Script / Maclib style.
+  local hasDesc = opts.Desc and opts.Desc ~= ""
+  local rowHeight = hasDesc and (Theme.Touch.RowHeight + 12) or Theme.Touch.RowHeight
+
   local row = Instance.new("TextButton")
   row.Name = opts.Name .. "Toggle"
   row.Parent = section.container
   row.BackgroundColor3 = Theme.Color.SurfaceRaised
   row.BackgroundTransparency = Theme.Alpha.GlassCard
-  row.Size = UDim2.new(1, 0, 0, Theme.Touch.RowHeight)
+  row.Size = UDim2.new(1, 0, 0, rowHeight)
   row.Text = ""
   row.AutoButtonColor = false
   row.LayoutOrder = #section.elements + 1
   row.BorderSizePixel = 0
   row.ZIndex = Theme.Z.WindowContent
+  row.ClipsDescendants = true
 
+  -- v2.0: B050 — use Icons.apply (pre-registered rbxassetid).
   if opts.Icon then
-    Icons.applyIcon(row, opts.Icon, Theme.Color.TextSecondary, Theme.Size.IconSmall).Position =
-      UDim2.new(0, Theme.Space.MD, 0.5, -Theme.Size.IconSmall/2)
+    local icon = Icons.apply(row, opts.Icon, Theme.Color.TextSecondary, Theme.Size.IconSmall)
+    if icon then
+      icon.Position = UDim2.new(0, Theme.Space.MD, 0.5, -Theme.Size.IconSmall/2)
+    end
   end
 
+  local labelX = opts.Icon and (Theme.Space.MD + Theme.Size.IconSmall + Theme.Space.SM) or Theme.Space.LG
   local label = makeLabel(row, opts.Name or "Toggle", {
-    position = opts.Icon and UDim2.new(0, Theme.Space.MD + Theme.Size.IconSmall + Theme.Space.SM, 0, 0)
-                      or UDim2.new(0, Theme.Space.LG, 0, 0),
+    position = UDim2.new(0, labelX, 0, hasDesc and -2 or 0),
     font = Theme.Font.Body, textSize = Theme.Size.Body,
     color = Theme.Color.TextPrimary,
   })
-  label.Size = UDim2.new(1, -120, 1, 0)
+  label.Size = UDim2.new(1, -120, 0, hasDesc and 18 or 24)
+  if hasDesc then
+    label.TextYAlignment = Enum.TextYAlignment.Center
+  end
+
+  -- Optional desc (subtitle)
+  if hasDesc then
+    local descLbl = makeLabel(row, opts.Desc, {
+      position = UDim2.new(0, labelX, 0, 16),
+      font = Theme.Font.Caption, textSize = Theme.Size.Caption,
+      color = Theme.Color.TextMuted,
+    })
+    descLbl.Size = UDim2.new(1, -120, 0, 14)
+    descLbl.TextYAlignment = Enum.TextYAlignment.Center
+  end
 
   local track = Instance.new("Frame")
   track.Parent = row

@@ -84,4 +84,82 @@ function Config.set(key, value)
   Config.save()
 end
 
+-- ─── ConfigManager (v2.0) ──────────────────────────────────────────────
+-- Multiple named configs (WindUI-style).
+-- USAGE:
+--   local mgr = Config.Manager
+--   local cfg = mgr:Config("my_setup")
+--   cfg:Set("killaura_range", 25)
+--   cfg:Save()
+--   local all = mgr:AllConfigs()  -- {"my_setup", "default", ...}
+Config.Manager = {}
+Config.Manager._folder = "bedwars_configs"
+Config.Manager._active = "default"
+
+function Config.Manager:_path(name)
+  return self._folder .. "/" .. name .. ".json"
+end
+
+-- Save the current Config.values to a named config
+function Config.Manager:Save(name)
+  name = name or self._active
+  local ok = pcall(function()
+    if not writefile or not makefolder then return end
+    if not isfile(self._folder) then makefolder(self._folder) end
+    writefile(self:_path(name), HttpService:JSONEncode(Config.values))
+  end)
+  if ok then self._active = name end
+  return ok
+end
+
+-- Load a named config into Config.values
+function Config.Manager:Load(name)
+  name = name or self._active
+  local ok, data = pcall(function()
+    if not isfile then return nil end
+    return isfile(self:_path(name)) and readfile(self:_path(name)) or nil
+  end)
+  if ok and data then
+    local parsedOk, parsed = pcall(function() return HttpService:JSONDecode(data) end)
+    if parsedOk and parsed then
+      for k, v in pairs(parsed) do
+        Config.values[k] = v
+      end
+      self._active = name
+      return true
+    end
+  end
+  return false
+end
+
+-- List all saved config names
+function Config.Manager:AllConfigs()
+  local out = {}
+  pcall(function()
+    if not isfile or not listfiles then return end
+    if not isfile(self._folder) then return end
+    for _, file in ipairs(listfiles(self._folder)) do
+      local name = file:match("/([^/]+)%.json$") or file:match("([^/]+)%.json$")
+      if name then table.insert(out, name) end
+    end
+  end)
+  return out
+end
+
+-- Create a Config object bound to a name
+function Config.Manager:Config(name)
+  return {
+    Name = name,
+    Set  = function(self, key, value) Config.values[key] = value end,
+    Get  = function(self, key) return Config.values[key] end,
+    Save = function(self) return Config.Manager:Save(self.Name) end,
+    Load = function(self) return Config.Manager:Load(self.Name) end,
+    Delete = function(self)
+      pcall(function()
+        if delfile then delfile(Config.Manager:_path(self.Name)) end
+      end)
+    end,
+  }
+end
+
 return Config

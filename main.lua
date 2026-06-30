@@ -160,7 +160,7 @@ local function boot()
   Input.onKeyDown("RightControl", Window.onPanic)
 
   -- ─── Combat tab ──────────────────────────────────────────────────────
-  local combatTab = Window:CreateTab("Combat", Icons.Unicode.Combat)
+  local combatTab = Window:CreateTab("Combat", "Combat")  -- v2.0: rbxassetid (B050)
   local combatSec = combatTab:CreateSection("Offense")
 
   combatSec:CreateToggle({
@@ -210,7 +210,7 @@ local function boot()
   })
 
   -- ─── Visuals tab ─────────────────────────────────────────────────────
-  local visTab = Window:CreateTab("Visuals", Icons.Unicode.Visuals)
+  local visTab = Window:CreateTab("Visuals", "Visuals")  -- v2.0: rbxassetid
   local visSec = visTab:CreateSection("ESP")
 
   visSec:CreateToggle({
@@ -256,7 +256,7 @@ local function boot()
   })
 
   -- ─── Movement tab ────────────────────────────────────────────────────
-  local moveTab = Window:CreateTab("Move", Icons.Unicode.Move)
+  local moveTab = Window:CreateTab("Move", "Move")  -- v2.0: rbxassetid
   local moveSec = moveTab:CreateSection("Movement")
 
   moveSec:CreateToggle({
@@ -292,7 +292,7 @@ local function boot()
   })
 
   -- ─── World tab ───────────────────────────────────────────────────────
-  local worldTab = Window:CreateTab("World", Icons.Unicode.World)
+  local worldTab = Window:CreateTab("World", "World")  -- v2.0: rbxassetid
   local worldSec = worldTab:CreateSection("Resources")
 
   worldSec:CreateToggle({
@@ -350,7 +350,7 @@ local function boot()
   })
 
   -- ─── Misc tab ────────────────────────────────────────────────────────
-  local miscTab = Window:CreateTab("Misc", Icons.Unicode.Misc)
+  local miscTab = Window:CreateTab("Misc", "Misc")  -- v2.0: rbxassetid
   local miscSec = miscTab:CreateSection("Quality of life")
 
   -- PANIC BUTTON — big, red, always-visible on touch devices.
@@ -634,5 +634,38 @@ if getgenv then
       Window.onPanic()
     end
   end
-  print("[bw] Loaded. Run bw.verify() in console to check status.")
+
+  -- v2.0: ConfigManager console commands.
+  -- Usage: bw.save("setup1"), bw.load("setup1"), bw.configs(), bw.theme("Amethyst")
+  if Config and Config.Manager then
+    getgenv().bw.save = function(name)
+      name = name or Config.Manager._active
+      local ok = Config.Manager:Save(name)
+      print("[bw] save " .. tostring(name) .. " → " .. (ok and "OK" or "FAIL"))
+      return ok
+    end
+    getgenv().bw.load = function(name)
+      name = name or Config.Manager._active
+      local ok = Config.Manager:Load(name)
+      print("[bw] load " .. tostring(name) .. " → " .. (ok and "OK" or "FAIL"))
+      return ok
+    end
+    getgenv().bw.configs = function()
+      local list = Config.Manager:AllConfigs()
+      print("[bw] Saved configs: " .. (#list > 0 and table.concat(list, ", ") or "(none)"))
+      return list
+    end
+  end
+
+  -- v2.0: Theme switcher console command.
+  -- Usage: bw.theme("Emerald"), bw.theme("Amethyst"), bw.theme("Sapphire"), bw.theme("Rose")
+  if Theme and Theme.apply then
+    getgenv().bw.theme = function(name)
+      Theme.apply(name)
+      print("[bw] Theme: " .. tostring(name) .. " (active: " .. tostring(Theme.CurrentPreset) .. ")")
+      return Theme.CurrentPreset
+    end
+  end
+
+  print("[bw] Loaded. Run bw.verify() / bw.test() / bw.theme() / bw.save() in console.")
 end

@@ -926,3 +926,133 @@ This won't be applied retroactively to every property set in the codebase (too i
 - `UIListLayout.ZIndex` removed (only 4 comment references in single-file)
 - `safeSet(obj, prop, value)` helper added to library.lua for future defensive property sets
 - All previous fixes preserved
+
+---
+
+## B044-B051 — v2.0 UI audit (2026-06-30 16:00)
+
+**Trigger:** User reported "the UI is completely broken — no text, weird layout, blue color." Asked to focus on fixing the UI first, then reskin using WindUI/Maclib/Modern Sirius/Abyss Script as references. Take the best aspects of each and add features others don't have.
+
+**HTML mockup:** `docs/v2-mockup.html` — visual preview of the reskin before any code was written. Shows Mac topbar, traffic lights, drag handle, tab indicator, theme picker (Emerald/Amethyst/Sapphire/Rose). User can open this in any browser to preview.
+
+### B044 — `makeLabel` textSize case mismatch (library.lua:76)
+**Symptom:** All text labels were rendering at `Theme.Size.Body = 13` instead of their intended sizes. Section headings too small, captions too big.
+**Root cause:** `makeLabel` read `opts.textsize` (lowercase) but every caller passes `textSize` (uppercase). Silent fallback.
+**Fix:** `opts.textSize or opts.textsize or Theme.Size.Body` — accepts both casings for backward compat.
+
+### B045 — Window has no default Size (library.lua:411-420)
+**Symptom:** Window could render at 0×0 for 1 frame before `SetVisible(true)` fired.
+**Root cause:** `win.Size` was never set in the `CreateWindow` constructor.
+**Fix:** Added `_defaultWinSize()` helper. Window always has correct Size/Position.
+
+### B046 — Status bar never created (library.lua:666-671)
+**Symptom:** FPS/Ping/STOP never appeared. This was the biggest visible bug — user saw no status bar at all.
+**Root cause:** `task.defer` + `win.AbsoluteSize.X > 100` check. AbsoluteSize is 0 at defer time, so status bar was never created.
+**Fix:** `task.delay(0.05, ...)` + check `win.Size.X.Offset` (immediate property) instead of AbsoluteSize (deferred).
+
+### B047 — `Dragger.enable` never called (library.lua:420)
+**Symptom:** Window was not draggable. User wanted Delta/Codex-style hold-and-drag.
+**Root cause:** `Dragger` module existed but was unused.
+**Fix:** `Dragger.enable(win, { dragFrame = header, snapToEdge, snapPadding, clampToScreen })`. Updated dragger.lua to support `dragFrame` option + `clampToScreen` + onDragStart/onDragEnd.
+
+### B048 — Hold-to-drag on FAB (library.lua + input.lua)
+**Symptom:** Hold did nothing. Only `onTap` existed.
+**Root cause:** No `Input.onHold` helper.
+**Fix:** Added `Input.onHold(threshold, onHold, onRelease)`. FAB now uses onHold: short tap = open menu, 250ms+ hold = start drag.
+
+### B049 — Page `LayoutOrder` undefined (library.lua:802)
+**Symptom:** Tab pages might render in undefined order.
+**Root cause:** `UIPageLayout` uses `LayoutOrder` for page order. Was missing, so all pages had order 0 (undefined).
+**Fix:** `page.LayoutOrder = #self.tabs + 1`.
+
+### B050 — Unicode icons render as `.notdef` (icons.lua, complete rewrite)
+**Symptom:** Icons appeared as blank boxes. This was the user's "blue color / no icons" complaint.
+**Root cause:** Roblox's `GothamBlack` font has incomplete Unicode coverage. Glyphs like ⚔, ◉, ➤ render as blank `.notdef` boxes.
+**Fix:** NEW pre-registered icon system (WindUI-style). Icons are rbxassetid ImageLabels with Unicode fallback. Pre-loaded the `windui` pack with 30+ verified rbxassetid values.
+
+### B051 — BorderAccent too transparent (theme.lua:79)
+**Symptom:** Active tab indicator nearly invisible.
+**Root cause:** `Theme.Alpha.BorderAccent = 0.50` (very transparent).
+**Fix:** Changed to 0.20.
+
+---
+
+## v2.0 RESKIN — Phase 2
+
+### Mac-style topbar (library.lua:472-663)
+- Three traffic light dots (red/yellow/green) on the left — close/min/max
+- Centered Title + Subtitle
+- Tag pills (v2.0, Premium) right of title
+- Theme picker (4 swatches) far right
+- Entire topbar is the drag handle (B047)
+- Click red dot to close
+
+### Search bar in tab bar (library.lua:686-707)
+- Real-time filter: as user types, tab visibility is toggled
+- Background blur, glass card style
+
+### Section pattern with desc (library.lua:1013-1110)
+- Optional `desc` parameter: "Section header" + subtitle text
+- Accent dot indicator
+- Uppercase tracked title (10pt), muted subtitle (10pt)
+- Card-based rows below
+
+### Toggle component (library.lua:1115-...)
+- Optional `Desc` parameter: subtitle below the title
+- Row height adapts: 44pt for desc-less, 56pt for desc
+- Uses new Icons.apply system (pre-registered rbxassetid)
+- iOS-style switch (white knob on accent track)
+
+### Theme presets (theme.lua:217-261)
+- 4 named presets: Emerald (default), Amethyst, Sapphire, Rose
+- `Theme.apply(presetName)` swaps colors in real time
+- `Theme.CurrentPreset` tracks active preset
+- Each preset defines Accent, AccentHover, AccentPressed, AccentGlow, Gold
+
+### ConfigManager (config.lua:88-148)
+- `Config.Manager:Config(name)` — create a named config
+- `Config.Manager:Save(name)` — save current values
+- `Config.Manager:Load(name)` — load values
+- `Config.Manager:AllConfigs()` — list all saved configs
+- Console: `bw.save("setup1")`, `bw.load("setup1")`, `bw.configs()`
+
+### Theme switcher console command
+- `bw.theme("Amethyst")` — switch theme in real time
+
+### Dragger improvements (dragger.lua, complete rewrite)
+- `dragFrame` option: separate frame for drag handle
+- `clampToScreen`: keep window in viewport during drag
+- `onDragStart` / `onDragEnd` callbacks
+- Listens to BOTH the dragFrame AND UserInputService
+
+### Anim.tabSwitch fix (animations.lua:85-138)
+- v2.0: tab icon is now an ImageLabel (rbxassetid) or TextLabel (Unicode fallback)
+- Uses ImageColor3 for ImageLabels, TextColor3 for TextLabels
+- Prevents the "TextColor3 on ImageLabel" error
+
+---
+
+## Top 5 bugs to remember (v2.0)
+
+1. **B001** — Icon doesn't appear unless `DisplayOrder=9999999` + `ZIndexBehavior=Global`.
+2. **B002** — Never fail silently. Any `pcall` must call `showBootError(err)`.
+3. **B029** — Never tween FROM a visibility property. Always start visible.
+4. **B034** — Never use `require(script.Parent...)` in loadstring-compatible modules.
+5. **B050** — **NEW v2.0**: Never rely on Unicode glyphs for icons. Roblox's `GothamBlack` font has incomplete Unicode coverage. Use pre-registered rbxassetid icons with Unicode fallback.
+
+---
+
+## Build status (v2.0)
+
+- **31 modules**, **239 KB single-file**, **6443 lines**
+- All 35 source files pass Lua 5.4 syntax check
+- Single-file parses cleanly
+- Pre-registered icon system (windui pack with 30+ rbxassetid)
+- Theme presets (Emerald/Amethyst/Sapphire/Rose) with live switching
+- Draggable window (header as drag handle, snap-to-edge)
+- Hold-to-drag on FAB
+- Mac-style topbar with traffic lights
+- Search bar in tab bar
+- Section pattern with desc support
+- ConfigManager (save/load by name)
+- Console commands: bw.verify, bw.test, bw.theme, bw.save, bw.load, bw.configs

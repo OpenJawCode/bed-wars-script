@@ -80,6 +80,27 @@ Icons.register("windui", {
   ChevronRight = "rbxassetid://6031763426",
   ChevronDown  = "rbxassetid://6031763426",
   Drag      = "rbxassetid://6031763426",
+
+  -- v2.0: alias common feature icon names to the windui pack so
+  -- main.lua can pass either the semantic name ("Sword") OR the
+  -- Unicode glyph ("⚔") and both resolve to the same rbxassetid.
+  ["⚔"]       = "rbxassetid://14368312652",  -- Combat/Sword
+  ["◉"]       = "rbxassetid://14368350193",  -- Visuals/Eye
+  ["➤"]       = "rbxassetid://14368359107",  -- Move/Rocket
+  ["◆"]       = "rbxassetid://14368362492",  -- World/Diamond
+  ["✦"]       = "rbxassetid://14368318994",  -- Misc/Sparkles
+  ["↔"]       = "rbxassetid://6031763426",   -- Reach/Arrows
+  ["◎"]       = "rbxassetid://6031763426",   -- Aimbot/Crosshair
+  ["▣"]       = "rbxassetid://6031763426",   -- Noclip/Wand
+  ["»"]       = "rbxassetid://6031763426",   -- Speed
+  ["$"]       = "rbxassetid://6031763426",   -- Shop
+  ["◈"]       = "rbxassetid://6031763426",   -- Generator
+  ["▤"]       = "rbxassetid://6031763426",   -- Bed
+  ["◐"]       = "rbxassetid://6031763426",   -- AntiAFK
+  ["↻"]       = "rbxassetid://6031763426",   -- AutoRejoin
+  ["◬"]       = "rbxassetid://6031763426",   -- Spy
+  ["⌕"]       = "rbxassetid://14425646684",  -- Search
+  ["✕"]       = "rbxassetid://14368309446",  -- Close
 })
 
 -- ─── Unicode glyphs (FALLBACK for when rbxassetid is unavailable) ───────

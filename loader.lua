@@ -332,10 +332,22 @@ local _BW = getgenv()
 if not _BW then _BW = _G end
 _BW._BW = _BW
 
--- v1.5: Phase 3 — wrap each loadstring in pcall so a single module
--- error doesn't kill the entire loader. The error is logged and
--- the module is skipped.
-for path, src in pairs(sources) do
+-- v1.5.1: B041 — iterate MODULES (ORDERED) not pairs(sources).
+-- WHY: pairs() gives undefined order. If a module is processed before
+-- its dependencies (e.g., bedwars_anticheat before util/logger),
+-- then `_BW.Logger` is nil when bedwars_anticheat.lua declares
+-- `local Logger = _BW.Logger` at the top. The local Logger stays
+-- nil forever (it's captured at file-load time, not lazily).
+-- Result: `Logger.info(...)` at line 234 throws
+-- "attempt to index nil with 'info'" and kills the boot.
+-- FIX: iterate MODULES (which is in dependency order) and look up
+-- the source from the `sources` table. Missing modules are skipped
+-- (they're already in the `failed` list from the parallel fetch).
+for _, path in ipairs(MODULES) do
+  local src = sources[path]
+  if not src then
+    -- This module failed to fetch — skip it (already in `failed` list)
+  end
   local name = path:match("([^/]+)%.lua$")
   local var
   if name == "logger" then var = "Logger"

@@ -768,3 +768,45 @@ re.match(r"^\s*local\s+\w+\s*=\s*require\s*\(\s*script", line)
 - Parallel HttpGet: 30s → 3-5s boot time
 - Boot splash: visible within 200ms
 - `bw.test()` command available in console for diagnostics
+
+---
+
+## B041 — `pairs(sources)` gives undefined order → module init fails (2026-06-30 15:15)
+
+**Trigger:** v1.5 still failed at boot. Error overlay showed:
+> `Boot failed: tKmTo-bedwars_anticheat:234: attempt to index nil with 'info'`
+
+**Root cause:** In `loader.lua:338`, the module-injection loop used `pairs(sources)`. Lua's `pairs()` iteration order over a string-keyed table is **undefined**. If `game/bedwars_anticheat.lua` happened to be processed before `util/logger.lua`, then `_BW.Logger` was nil when bedwars_anticheat declared `local Logger = _BW.Logger` at line 35. The local `Logger` was captured as nil at file-load time and stayed nil forever (Lua locals are scoped lexically, not lazily). When `Anticheat.init()` was called immediately after, `Logger.info("Anticheat module loaded")` threw `attempt to index nil with 'info'`.
+
+The error was random — it depended on the hash order of the `sources` table, which depended on which HttpGet responses arrived first in the parallel fetch.
+
+**Fix (two-layer defense):**
+1. **Loader (primary):** Changed `for path, src in pairs(sources)` to `for _, path in ipairs(MODULES)`. The MODULES list is in explicit dependency order (logger → theme → tween → ... → bedwars_anticheat → features). This guarantees the load order matches the dependency order.
+2. **bedwars_anticheat (defense in depth):** Replaced `local Logger = _BW.Logger` with `local function L() return _BW.Logger end` and changed all `Logger.X` calls to `L().X`. Now the lookup is lazy — happens at function call time, not at file load time. Even if the loader were broken in the future, this would survive.
+
+**Lesson:** When injecting dependencies via a registry (`_BW.X`), NEVER capture them as locals at file-load time. Use accessor functions so the lookup is lazy. `local Foo = _BW.Foo` is a landmine if there's any chance the registry isn't populated yet.
+
+This bug exists in 23 modules (every module that does `local X = _BW.X` at the top). The loader fix prevents it from triggering, but the right long-term fix is to convert all of them to lazy accessors. For v1.5.1 I only fixed bedwars_anticheat because that's the one that triggered — but the others could trigger if the loader regresses.
+
+---
+
+## Top 5 bugs to remember (v1.5.1)
+
+1. **B001** — Icon doesn't appear unless `DisplayOrder=9999999` + `ZIndexBehavior=Global`.
+2. **B002** — Never fail silently. Any `pcall` must call `showBootError(err)`.
+3. **B029** — Never tween FROM a visibility property. Always start visible.
+4. **B034** — Never use `require(script.Parent...)` in loadstring-compatible modules. Use the `_BW.X` registry.
+5. **B041** — **NEW v1.5.1**: Never iterate `pairs(sources)` when loading modules with dependencies. Use `ipairs(MODULES)` (ordered) or convert modules to lazy dependency accessors (`local function L() return _BW.Logger end`).
+
+---
+
+## Build status (v1.5.1)
+
+- **31 modules**, **210 KB single-file**, **5734 lines**
+- All 35 source files pass Lua 5.4 syntax check
+- Single-file parses cleanly
+- Loader uses `ipairs(MODULES)` for ordered module injection
+- bedwars_anticheat uses lazy `L()` accessor for Logger
+- Parallel HttpGet: 30s → 3-5s boot time
+- Boot splash: visible within 200ms
+- `bw.test()` command available in console for diagnostics

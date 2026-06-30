@@ -28,11 +28,15 @@ local RunService      = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace       = game:GetService("Workspace")
 
-local Services   = _BW.Services
-local Remotes    = _BW.Remotes
-local GameWksp   = _BW.GameWksp
-local PlaceId    = _BW.PlaceId
-local Logger     = _BW.Logger
+-- v1.5.1: B041 — lazy-resolve _BW dependencies instead of capturing
+-- at file-load time. The old `local Logger = _BW.Logger` captured
+-- nil if this module was loaded before util/logger.lua (which was
+-- the bug in B041 — the loader iterated with `pairs(sources)`
+-- giving undefined order, so bedwars_anticheat could be processed
+-- first and Logger would be nil forever).
+-- FIX: use `_BW.X` lookups at function call time, not at file
+-- load time. This way the order doesn't matter.
+local function L() return _BW.Logger end
 
 local Anticheat = {}
 
@@ -62,7 +66,7 @@ function Anticheat.fireInflateBalloon()
     Remotes.fire("InflateBalloon")
   end)
   if ok then
-    Logger.info("InflateBalloon fired (velocity clamp opened)")
+    L().info("InflateBalloon fired (velocity clamp opened)")
   end
   return ok
 end
@@ -129,7 +133,7 @@ function Anticheat.startGroundHitHeartbeat(rootPart)
       end)
     end)
   end)
-  Logger.info("GroundHit heartbeat started (stealth mode, ±5ms jitter)")
+  L().info("GroundHit heartbeat started (stealth mode, ±5ms jitter)")
 end
 
 function Anticheat.stopGroundHitHeartbeat()
@@ -231,8 +235,8 @@ end
 
 -- ─── Init ───────────────────────────────────────────────────────────────
 function Anticheat.init()
-  Logger.info("Anticheat module loaded (stealth mode)")
-  Logger.warn("Detection remotes documented — DO NOT FIRE: "
+  L().info("Anticheat module loaded (stealth mode)")
+  L().warn("Detection remotes documented — DO NOT FIRE: "
     .. table.concat(Anticheat.DETECTION_REMOTES_NEVER_FIRE, ", "))
 end
 

@@ -635,6 +635,11 @@ function Library:CreateWindow(settings)
     local winX = math.floor((viewport.X - winW) / 2)
     local winY = math.floor((viewport.Y - winH) / 2)
 
+    -- Tell the toast system to move toasts out of the way of the window
+    if Toast and Toast.setWindowOpen then
+      Toast.setWindowOpen(visible)
+    end
+
     if visible then
       backdrop.Visible = true
       win.Visible = true

@@ -81,14 +81,18 @@
     -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
   }
 
-  /* Toast container (top-right, stacked) */
+  /* Toast container (BOTTOM-RIGHT when window is open, TOP-RIGHT when closed) */
   .toast {
     position: absolute;
-    top: 68px;
+    bottom: 88px;  /* above the hotbar, below the window */
     right: 12px;
     width: 300px;
     z-index: 9999999;
     display: flex; flex-direction: column; gap: 8px;
+  }
+  @keyframes slideInUp {
+    0%   { transform: translateY(40px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
   }
   .toast-card {
     height: 56px;
@@ -306,16 +310,16 @@
     </div>
   </div>
 
-  <!-- Toast notifications (top-right, stacked) -->
+  <!-- Toast notifications (BOTTOM-RIGHT when window is open — moved out of header's way) -->
   <div class="toast">
-    <div class="toast-card t1">
+    <div class="toast-card t1" style="animation: slideInUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) backwards;">
       <div class="toast-icon t1">✓</div>
       <div class="toast-body">
         <div class="toast-title">Loaded</div>
         <div class="toast-text">Tap ⚡ to open · ⚠ STOP to disable all</div>
       </div>
     </div>
-    <div class="toast-card t2" style="animation-delay: 0.4s; opacity: 0.6;">
+    <div class="toast-card t2" style="animation: slideInUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) 0.4s backwards; opacity: 0.6;">
       <div class="toast-icon t2">✦</div>
       <div class="toast-body">
         <div class="toast-title">Reach Extension · ON</div>

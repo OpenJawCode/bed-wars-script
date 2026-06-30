@@ -19,34 +19,34 @@ local Logger = _BW.Logger
 
 local Toast = {}
 
--- 5 semantic types with config
+-- 5 semantic types with config (colors use Theme.Color.* — no hardcoding)
 Toast.TYPES = {
   info = {
-    color     = Color3.fromRGB(59, 130, 246),    -- blue
+    color     = Theme.Color.Info,      -- blue
     icon      = "ⓘ",
     label     = "INFO",
     duration  = 2.5,
   },
   success = {
-    color     = Color3.fromRGB(16, 185, 129),    -- emerald
+    color     = Theme.Color.Success,   -- emerald
     icon      = "✓",
     label     = "ON",
     duration  = 1.8,
   },
   accent = {
-    color     = Color3.fromRGB(245, 183, 0),     -- gold
+    color     = Theme.Color.Gold,      -- gold
     icon      = "✦",
     label     = "",
     duration  = 1.8,
   },
   neutral = {
-    color     = Color3.fromRGB(160, 170, 188),   -- muted gray
+    color     = Theme.Color.TextMuted, -- muted gray
     icon      = "",
     label     = "",
     duration  = 1.8,
   },
   danger = {
-    color     = Color3.fromRGB(239, 68, 68),     -- red
+    color     = Theme.Color.Danger,    -- red
     icon      = "⚠",
     label     = "ERROR",
     duration  = 5.5,
@@ -66,9 +66,13 @@ function Toast.setParent(screengui)
   Toast._container.Name = "ToastContainer"
   Toast._container.Parent = screengui
   Toast._container.BackgroundTransparency = 1
-  Toast._container.Position = UDim2.new(0, 12, 0, 60 + 8)  -- below header
-  Toast._container.Size = UDim2.new(0, 300, 1, -76)
-  Toast._container.ZIndex = Theme.Z.Notifications
+  -- Position at top-right, BELOW the window's top. The Library calls
+  -- Toast.setWindowOpen(true/false) when the user opens/closes the
+  -- menu window so the toasts can adjust their position to avoid
+  -- overlapping the window header.
+  Toast._container.Position = UDim2.new(0, 12, 0, 12)
+  Toast._container.Size = UDim2.new(0, 300, 1, -24)
+  Toast._container.ZIndex = Theme.Z.Notifications + 10
   Toast._container.BorderSizePixel = 0
 
   local layout = Instance.new("UIListLayout")
@@ -91,7 +95,7 @@ local function buildToast(toastType, title, text)
   card.Name = "Toast_" .. title
   card.Parent = Toast._container
   card.Size = UDim2.new(1, 0, 0, 56)
-  card.BackgroundColor3 = Color3.fromRGB(14, 18, 28)
+  card.BackgroundColor3 = Theme.Color.Surface
   card.BackgroundTransparency = 1  -- starts invisible for slide-in
   card.BorderSizePixel = 0
   card.LayoutOrder = -math.floor(tick() * 1000)  -- newest first
@@ -247,6 +251,20 @@ function Toast.neutral(title, text, opts) return Toast.show("neutral", title, te
 function Toast.danger(title, text, opts)  return Toast.show("danger", title, text, opts) end
 
 -- Clear all toasts (used on panic)
+-- Tell the toast container where the window is. When the menu is open,
+-- the window is full-width and there's no room for toasts on the right.
+-- So we move toasts to the BOTTOM-RIGHT in that case.
+function Toast.setWindowOpen(isOpen)
+  if not Toast._container then return end
+  if isOpen then
+    -- Window is open, move toasts to bottom-right (below the window)
+    Toast._container.Position = UDim2.new(1, -312, 1, -80)
+  else
+    -- Window is closed, toasts go top-right
+    Toast._container.Position = UDim2.new(0, 12, 0, 12)
+  end
+end
+
 function Toast.clear()
   if Toast._container then
     for _, child in ipairs(Toast._container:GetChildren()) do

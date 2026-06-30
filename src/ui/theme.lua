@@ -197,6 +197,11 @@ Theme.Z = {
 
 -- ─── Window dimensions ─────────────────────────────────────────────────────
 Theme.Window = {
+  WidthPctPortrait  = 0.94;   -- 94% wide in portrait
+  HeightPctPortrait = 0.82;   -- 82% tall in portrait
+  WidthPctLandscape = 0.80;   -- 80% wide in landscape (wider UI)
+  HeightPctLandscape= 0.92;   -- 92% tall in landscape
+  -- Legacy (for back-compat with the existing CreateWindow):
   WidthPct  = 0.94;
   HeightPct = 0.82;
   Margin    = 12;

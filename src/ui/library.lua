@@ -25,6 +25,8 @@ local Theme   = _BW.Theme
 local Input   = _BW.Input
 local Anim    = _BW.Anim
 local Icons   = _BW.Icons
+local Toast   = _BW.Toast
+local Rotation = _BW.Rotation
 
 local Library = {}
 
@@ -607,6 +609,22 @@ function Library:CreateWindow(settings)
   -- FAB (fixed top-right — NO drag)
   self.fab = createFab(sg, function() self:SetVisible(not self.open) end,
     settings.Accent or Theme.Color.Accent)
+
+  -- Toast container (top-right column)
+  if Toast and Toast.setParent then
+    Toast.setParent(sg)
+  end
+
+  -- Rotation listener (re-clamp window on phone flip)
+  if Rotation and Rotation.start then
+    Rotation.start(function(newSize)
+      -- Re-fire the SetVisible logic with the new viewport
+      if self.open then
+        self:SetVisible(false)
+        task.delay(0.05, function() self:SetVisible(true) end)
+      end
+    end)
+  end
 
   -- ─── Visibility animation ─────────────────────────────────────────
   function self:SetVisible(visible)

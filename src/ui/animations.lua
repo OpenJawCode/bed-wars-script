@@ -180,4 +180,66 @@ function Anim.staggerReveal(rows, stagger)
   end
 end
 
+-- ─── popIn (v1.3) — scale 0 → 1 with overshoot ────────────────────────────
+-- Used by the FAB on first appear. Uses Back easing for the overshoot.
+-- opts: { duration = 0.42, scale = 1 } — final scale (default 1)
+function Anim.popIn(guiObject, opts)
+  opts = opts or {}
+  local duration = opts.duration or 0.42
+  local targetScale = opts.scale or 1
+  -- Capture original size
+  local originalSize = guiObject.Size
+  -- Start at 0
+  guiObject.Size = UDim2.fromOffset(originalSize.X.Offset * 0, originalSize.Y.Offset * 0)
+  TweenService:Create(guiObject,
+    TweenInfo.new(duration, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+    { Size = originalSize }
+  ):Play()
+end
+
+-- ─── pulseBloom (v1.3) — pulse inner + outer UIStroke for the "bloom" effect ─
+-- Used by the FAB. The inner stroke pulses fast, the outer slow (offset).
+function Anim.pulseBloom(innerStroke, outerStroke, color, period)
+  period = period or 1.8
+  color = color or Theme.Color.Accent
+  local function pulseInner()
+    if not innerStroke or not innerStroke.Parent then return end
+    TweenService:Create(innerStroke,
+      TweenInfo.new(period / 2, Theme.Easing.Glow, Enum.EasingDirection.In),
+      { Color = color, Transparency = 0.20 }
+    ):Play()
+    task.delay(period / 2, function()
+      if not innerStroke or not innerStroke.Parent then return end
+      TweenService:Create(innerStroke,
+        TweenInfo.new(period / 2, Theme.Easing.Glow, Enum.EasingDirection.Out),
+        { Color = color, Transparency = 0.55 }
+      ):Play()
+      if innerStroke and innerStroke.Parent then
+        task.delay(period / 2, pulseInner)
+      end
+    end)
+  end
+  local function pulseOuter()
+    if not outerStroke or not outerStroke.Parent then return end
+    -- Offset by half a period for depth effect
+    task.delay(period * 0.4, function()
+      while outerStroke and outerStroke.Parent do
+        TweenService:Create(outerStroke,
+          TweenInfo.new(period / 2, Theme.Easing.Glow, Enum.EasingDirection.In),
+          { Color = color, Transparency = 0.65 }
+        ):Play()
+        task.wait(period / 2)
+        if not outerStroke or not outerStroke.Parent then return end
+        TweenService:Create(outerStroke,
+          TweenInfo.new(period / 2, Theme.Easing.Glow, Enum.EasingDirection.Out),
+          { Color = color, Transparency = 0.90 }
+        ):Play()
+        task.wait(period / 2)
+      end
+    end)
+  end
+  pulseInner()
+  pulseOuter()
+end
+
 return Anim

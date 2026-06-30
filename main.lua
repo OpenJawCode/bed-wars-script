@@ -71,12 +71,16 @@ local Input       = loadModule("Input",      "util/input.lua")
 local Projection  = loadModule("Projection", "util/projection.lua")
 local Anim        = loadModule("Anim",       "ui/animations.lua")
 local Icons       = loadModule("Icons",      "ui/icons.lua")
+local Toast       = loadModule("Toast",      "ui/toast.lua")
+local Rotation    = loadModule("Rotation",   "ui/rotation.lua")
 local Library     = loadModule("Library",    "ui/library.lua")
 local Config      = loadModule("Config",     "config.lua")
 local PlaceId     = loadModule("PlaceId",    "game/placeid.lua")
 local Services    = loadModule("Services",   "game/services.lua")
 local Remotes     = loadModule("Remotes",    "game/remotes.lua")
 local GameWksp    = loadModule("GameWksp",   "game/workspace.lua")
+local Anticheat  = loadModule("Anticheat",  "game/bedwars_anticheat.lua")
+if Anticheat and Anticheat.init then Anticheat.init() end
 
 -- Features
 local Killaura    = loadModule("Killaura",   "features/killaura.lua")
@@ -404,12 +408,16 @@ local function boot()
     Fly.onCharacterAdded()
   end)
 
-  -- ─── Boot notification ───────────────────────────────────────────────
-  Library:Notify({
-    Title = "Bedwars Script",
-    Content = "Loaded. Tap ⚡ to open. Use ⚠ PANIC to disable all.",
-    Duration = 6,
-  })
+  -- ─── Boot notification (v1.3 — uses Toast module) ───────────────────
+  if _BW.Toast and _BW.Toast.success then
+    _BW.Toast.success("Loaded", "Tap ⚡ to open · ⚠ STOP to disable all")
+  else
+    Library:Notify({
+      Title = "Bedwars Script",
+      Content = "Loaded. Tap ⚡ to open. Use ⚠ PANIC to disable all.",
+      Duration = 6,
+    })
+  end
 
   Logger.info("Boot complete — UI ready")
   return Window

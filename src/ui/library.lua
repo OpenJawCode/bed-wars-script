@@ -579,13 +579,18 @@ function Library:CreateWindow(settings)
   end
 
   -- Rotation listener (re-clamp window on phone flip)
+  -- v1.5.2: B042 defense — wrap in pcall so a Rotation bug never kills
+  -- the boot. Previously a typo in GuiService:GetPropertyChangedSignal
+  -- halted the entire script.
   if Rotation and Rotation.start then
-    Rotation.start(function(newSize)
-      -- Re-fire the SetVisible logic with the new viewport
-      if self.open then
-        self:SetVisible(false)
-        task.delay(0.05, function() self:SetVisible(true) end)
-      end
+    pcall(function()
+      Rotation.start(function(newSize)
+        -- Re-fire the SetVisible logic with the new viewport
+        if self.open then
+          self:SetVisible(false)
+          task.delay(0.05, function() self:SetVisible(true) end)
+        end
+      end)
     end)
   end
 

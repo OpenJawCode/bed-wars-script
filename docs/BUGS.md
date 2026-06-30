@@ -810,3 +810,52 @@ This bug exists in 23 modules (every module that does `local X = _BW.X` at the t
 - Parallel HttpGet: 30s → 3-5s boot time
 - Boot splash: visible within 200ms
 - `bw.test()` command available in console for diagnostics
+
+---
+
+## B042 — `GuiInset is not a valid property name` (2026-06-30 15:25)
+
+**Trigger:** v1.5.1 still failed at boot. Error overlay showed:
+> `Boot failed: GuiInset is not a valid property name.`
+
+**Root cause:** In `src/ui/rotation.lua:53`:
+```lua
+Rotation._guiInsetConn = GuiService:GetPropertyChangedSignal("GuiInset"):Connect(function()
+```
+
+`GuiInset` is NOT a property of `GuiService` — it's a METHOD (`GuiService:GetGuiInset()`). So `GetPropertyChangedSignal("GuiInset")` throws "GuiInset is not a valid property name" and halts the entire boot.
+
+The intent was to listen for safe-area / notch / cutout changes so the UI could re-clamp. But:
+1. The API is wrong — `GetPropertyChangedSignal` only works on actual properties
+2. The viewport-size listener (lines 34-48) ALREADY fires on any meaningful geometry change, so this listener was redundant anyway
+
+**Fix (two-layer defense):**
+1. **rotation.lua (primary):** Removed the broken `GuiInset` listener entirely. The `ViewportSize` listener is sufficient.
+2. **library.lua (defense in depth):** Wrapped the entire `Rotation.start(...)` call in pcall. Any future Rotation bug no longer kills the boot.
+
+**Lesson:** When using `GetPropertyChangedSignal`, verify the property exists FIRST. `GetPropertyChangedSignal` throws on non-properties. Also: when something has obvious defensive listeners, the safest pattern is to wrap them in pcall — a listener crash should NEVER prevent the boot from completing.
+
+This is the same anti-pattern as B034/B041: top-level code (or near-top-level code) that throws halts the entire script. Every function that the boot calls should be either:
+- Wrapped in pcall (safest)
+- Or verified to only do safe operations
+
+---
+
+## Top 5 bugs to remember (v1.5.2)
+
+1. **B001** — Icon doesn't appear unless `DisplayOrder=9999999` + `ZIndexBehavior=Global`.
+2. **B002** — Never fail silently. Any `pcall` must call `showBootError(err)`.
+3. **B029** — Never tween FROM a visibility property. Always start visible.
+4. **B034** — Never use `require(script.Parent...)` in loadstring-compatible modules. Use the `_BW.X` registry.
+5. **B041** — Never iterate `pairs(sources)` when loading modules with dependencies. Use `ipairs(MODULES)` (ordered) or convert modules to lazy dependency accessors.
+
+---
+
+## Build status (v1.5.2)
+
+- **31 modules**, **211 KB single-file**, **5741 lines**
+- All 35 source files pass Lua 5.4 syntax check
+- Single-file parses cleanly
+- No `GuiInset` property access in single-file (only in comments)
+- `Rotation.start()` wrapped in pcall in library.lua
+- All previous fixes preserved

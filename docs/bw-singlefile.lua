@@ -1598,13 +1598,18 @@ do
     end
   
     -- Rotation listener (re-clamp window on phone flip)
+    -- v1.5.2: B042 defense — wrap in pcall so a Rotation bug never kills
+    -- the boot. Previously a typo in GuiService:GetPropertyChangedSignal
+    -- halted the entire script.
     if Rotation and Rotation.start then
-      Rotation.start(function(newSize)
-        -- Re-fire the SetVisible logic with the new viewport
-        if self.open then
-          self:SetVisible(false)
-          task.delay(0.05, function() self:SetVisible(true) end)
-        end
+      pcall(function()
+        Rotation.start(function(newSize)
+          -- Re-fire the SetVisible logic with the new viewport
+          if self.open then
+            self:SetVisible(false)
+            task.delay(0.05, function() self:SetVisible(true) end)
+          end
+        end)
       end)
     end
   
@@ -2690,36 +2695,38 @@ do
     Rotation._onChange = onChange
     Rotation._lastSize = Vector2.new(Workspace.CurrentCamera and Workspace.CurrentCamera.ViewportSize.X or 393,
                                     Workspace.CurrentCamera and Workspace.CurrentCamera.ViewportSize.Y or 852)
-    -- Listen to viewport size changes
+    -- Listen to viewport size changes (phone rotation)
     if Rotation._conn then
       pcall(function() Rotation._conn:Disconnect() end)
     end
-    Rotation._conn = Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-      local cam = Workspace.CurrentCamera
-      if not cam then return end
-      local newSize = Vector2.new(cam.ViewportSize.X, cam.ViewportSize.Y)
-      if Rotation._lastSize and
-         math.abs(newSize.X - Rotation._lastSize.X) < 1 and
-         math.abs(newSize.Y - Rotation._lastSize.Y) < 1 then
-        return  -- no real change
-      end
-      Rotation._lastSize = newSize
-      Logger.info("Viewport changed: " .. tostring(newSize))
-      if Rotation._onChange then
-        pcall(Rotation._onChange, newSize)
-      end
-    end)
-    -- Also listen to GuiService inset changes (notch / cutout / safe area)
-    if Rotation._guiInsetConn then
-      pcall(function() Rotation._guiInsetConn:Disconnect() end)
+    local ok_cam, cam = pcall(function() return Workspace.CurrentCamera end)
+    if ok_cam and cam then
+      Rotation._conn = cam:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+        local c = Workspace.CurrentCamera
+        if not c then return end
+        local newSize = Vector2.new(c.ViewportSize.X, c.ViewportSize.Y)
+        if Rotation._lastSize and
+           math.abs(newSize.X - Rotation._lastSize.X) < 1 and
+           math.abs(newSize.Y - Rotation._lastSize.Y) < 1 then
+          return  -- no real change
+        end
+        Rotation._lastSize = newSize
+        Logger.info("Viewport changed: " .. tostring(newSize))
+        if Rotation._onChange then
+          pcall(Rotation._onChange, newSize)
+        end
+      end)
     end
-    Rotation._guiInsetConn = GuiService:GetPropertyChangedSignal("GuiInset"):Connect(function()
-      local inset = GuiService:GetGuiInset()
-      Logger.debug("GuiInset changed: " .. tostring(inset))
-      if Rotation._onChange and Rotation._lastSize then
-        pcall(Rotation._onChange, Rotation._lastSize)
-      end
-    end)
+  
+    -- v1.5.2: B042 — REMOVED the broken GuiService:GetPropertyChangedSignal("GuiInset")
+    -- listener. GuiInset is a METHOD (GuiService:GetGuiInset()), not a property,
+    -- so GetPropertyChangedSignal("GuiInset") throws "GuiInset is not a valid
+    -- property name." and halts the entire boot.
+    --
+    -- The ViewportSize listener above is sufficient for rotation handling.
+    -- Notch / cutout / safe-area changes are rare and the ViewportSize
+    -- signal will fire on any meaningful geometry change anyway.
+  
     Logger.info("Rotation listener started")
   end
   

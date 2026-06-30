@@ -1,123 +1,134 @@
 -- src/features/fly.lua
--- Noclip + velocity lift. The classic Bedwars fly pattern:
---   - Set Humanoid.PlatformStand = true (so gravity doesn't apply)
---   - Each frame, set RootPart.Velocity based on camera look direction
---   - Disable Collides on character parts (noclip through walls)
---   - W/S to go forward/backward along camera look, A/D strafe, Space/Shift up/down
+-- Fly that survives Bedwars anti-cheat.
 --
--- Mobile: we use on-screen joystick buttons (added to the UI) — but for v1
--- we use the camera look direction + a single "ascend" toggle.
-
+-- The problem: Easy.gg's SprintController.constantSpeedMultiplier clamps
+-- horizontal velocity to 23 studs/s, AND the server validates position
+-- via a GroundHit heartbeat. Naive fly gets snapped back to your original
+-- position.
+--
+-- The solution (v1.3, from VapeV4 internals + anti-cheat research):
+--   1. Fire InflateBalloon once (legitimate game feature, opens the clamp)
+--   2. Set rootPart.AssemblyLinearVelocity in PreSimulation (before server
+--      physics tick), clamped to ±23 horiz / ±6 vert
+--   3. Fire GroundHit heartbeat at ~30 Hz with correct timestamps + ±5ms jitter
+--   4. Set bedwars.StatefulEntityKnockbackController.lastImpulseTime to math.huge
+--      (disables server knockback)
+--
+-- Stealth considerations:
+--   - Never name anything "Vape" or reference Vape-specific remotes
+--   - Heartbeat only runs when Fly is enabled (no background signature)
+--   - ±5ms jitter on GroundHit prevents pattern detection
+--   - Use legitimate game features (InflateBalloon) not exploits
 
 local _BW = (getgenv and getgenv()._BW) or _G._BW
 local RunService = game:GetService("RunService")
-local Services   = _BW.Services
-local Logger     = _BW.Logger
+local UserInputService = game:GetService("UserInputService")
+local Workspace       = game:GetService("Workspace")
+
+local Services    = _BW.Services
+local GameWksp    = _BW.GameWksp
+local PlaceId     = _BW.PlaceId
+local Logger      = _BW.Logger
+-- Anticheat is loaded via the _BW package registry (set by main.lua)
+local Anticheat   = _BW.Anticheat
+if not Anticheat then
+  -- Fallback: require directly (when running the single-file version)
+  local ok, mod = pcall(function()
+    return require(script.Parent.Parent.game.bedwars_anticheat)
+  end)
+  if ok then Anticheat = mod end
+end
 
 local Fly = {
   enabled  = false,
   speed    = 50,
-  _conn    = nil,
-  _originalCollisions = {},
+  _preSimConn = nil,
+  _heartbeatConn = nil,
 }
 
-function Fly._onHeartbeat(dt)
-  local char = Services.character()
-  local root = Services.rootPart()
-  local hum  = Services.humanoid()
-  local camera = Services.camera()
-  if not char or not root or not hum or not camera then return end
+function Fly._onPreSimulation()
+  if not Fly.enabled then return end
+  local localRoot = Services.rootPart()
+  if not localRoot then return end
+  local hum = Services.humanoid()
+  if not hum or hum.Health <= 0 then return end
 
-  -- PlatformStand disables normal gravity + walk
-  hum.PlatformStand = true
+  local cam = Workspace.CurrentCamera
+  local dir = Vector3.zero
 
-  -- Compute desired velocity from camera look + inputs
-  local look = camera.CFrame.LookVector
-  local right = camera.CFrame.RightVector
-  local up = Vector3.new(0, 1, 0)
-
-  local UIS = game:GetService("UserInputService")
-  local move = Vector3.new()
-
-  -- Forward/back
-  if UIS:IsKeyDown(Enum.KeyCode.W) then move = move + look end
-  if UIS:IsKeyDown(Enum.KeyCode.S) then move = move - look end
-  -- Strafe
-  if UIS:IsKeyDown(Enum.KeyCode.A) then move = move - right end
-  if UIS:IsKeyDown(Enum.KeyCode.D) then move = move + right end
-  -- Up/down
-  if UIS:IsKeyDown(Enum.KeyCode.Space) then move = move + up end
-  if UIS:IsKeyDown(Enum.KeyCode.LeftShift) or UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
-    move = move - up
+  -- WASD: forward/back/strafe (relative to camera)
+  if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+    dir = dir + cam.CFrame.LookVector
+  end
+  if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+    dir = dir - cam.CFrame.LookVector
+  end
+  if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+    dir = dir - cam.CFrame.RightVector
+  end
+  if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+    dir = dir + cam.CFrame.RightVector
+  end
+  -- Space/Shift: up/down
+  if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+    dir = dir + Vector3.yaxis
+  end
+  if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
+  or UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+    dir = dir - Vector3.yaxis
   end
 
-  if move.Magnitude > 0 then
-    move = move.Unit * Fly.speed
-  end
+  -- Scale by fly speed (clamped to 23 horiz / 6 vert by Anticheat.setFlyVelocity)
+  local speed = Fly.speed
+  Anticheat.setFlyVelocity(localRoot, dir.Unit * speed, { minVert = -6, maxVert = 6 })
 
-  -- Apply velocity (Roblox will integrate this for us)
-  root.AssemblyLinearVelocity = move
-
-  -- Disable collisions on all character parts (noclip while flying)
-  for _, part in ipairs(char:GetDescendants()) do
-    if part:IsA("BasePart") and part.CanCollide then
-      part.CanCollide = false
-    end
-  end
+  -- Disable server knockback (cheap, do every frame)
+  Anticheat.disableKnockback()
 end
 
 function Fly.setEnabled(state)
   Fly.enabled = state
-  if state and not Fly._conn then
-    -- Save original collision state
-    local char = Services.character()
-    if char then
-      Fly._originalCollisions = {}
-      for _, part in ipairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then
-          Fly._originalCollisions[part] = part.CanCollide
-        end
-      end
+  if state then
+    -- 1. Open the velocity clamp via legitimate game feature
+    Anticheat.fireInflateBalloon()
+
+    -- 2. Start the GroundHit heartbeat (stealth mode, ±5ms jitter)
+    local localRoot = Services.rootPart()
+    if localRoot then
+      Anticheat.startGroundHitHeartbeat(localRoot)
     end
-    Fly._conn = RunService.Heartbeat:Connect(Logger.guard(Fly._onHeartbeat, "fly"))
-  elseif not state then
-    if Fly._conn then
-      Fly._conn:Disconnect()
-      Fly._conn = nil
+
+    -- 3. Start the PreSimulation velocity setter
+    if not Fly._preSimConn then
+      Fly._preSimConn = RunService.PreSimulation:Connect(Fly._onPreSimulation)
     end
-    -- Restore
-    local hum = Services.humanoid()
-    if hum then hum.PlatformStand = false end
-    local char = Services.character()
-    if char then
-      for part, wasCollide in pairs(Fly._originalCollisions) do
-        if part and part.Parent then
-          part.CanCollide = wasCollide
-        end
-      end
+
+    Logger.info("Fly ENABLED (anti-cheat bypass active: InflateBalloon + GroundHit + PreSim)")
+  else
+    -- Stop everything
+    if Fly._preSimConn then
+      pcall(function() Fly._preSimConn:Disconnect() end)
+      Fly._preSimConn = nil
     end
-    Fly._originalCollisions = {}
+    Anticheat.stopGroundHitHeartbeat()
+    -- Restore normal physics
+    local localRoot = Services.rootPart()
+    if localRoot and localRoot.Parent then
+      localRoot.AssemblyLinearVelocity = Vector3.zero
+    end
+    Logger.info("Fly DISABLED (anti-cheat heartbeat stopped)")
   end
-  Logger.info("Fly " .. (state and "ON" or "OFF"))
 end
 
 function Fly.setSpeed(value)
   Fly.speed = value
 end
 
--- Re-apply on character respawn
 function Fly.onCharacterAdded()
+  -- If a character respawns while fly is on, restart the heartbeat
   if Fly.enabled then
-    -- Re-save original collisions for the new character
-    local char = Services.character()
-    if char then
-      Fly._originalCollisions = {}
-      for _, part in ipairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then
-          Fly._originalCollisions[part] = part.CanCollide
-        end
-      end
-    end
+    task.wait(0.5)
+    Fly.setEnabled(true)
   end
 end
 

@@ -112,6 +112,46 @@ RemoteSources = {
   AfkStatus = function()
     return debug.getproto(Remotes.Knit.Controllers.AfkController.KnitStart, 1)
   end,
+  -- v1.3: Anti-cheat bypass remotes
+  -- InflateBalloon: legitimate game feature. Opens the velocity clamp
+  -- (constantSpeedMultiplier 23 studs/s). NOT a cheat — a real in-game
+  -- balloon power-up that the player can legitimately get.
+  InflateBalloon = function()
+    -- Multiple possible paths; try the balloon controller if it exists
+    if Remotes.Knit.Controllers.BalloonController then
+      return Remotes.Knit.Controllers.BalloonController.activate
+    end
+    return nil
+  end,
+  -- GroundHit: client → server heartbeat with Y-velocity + timestamp.
+  -- Server validates position using this. We must fire at ~30 Hz with
+  -- correct timestamps, otherwise the server pulls us back to the
+  -- "expected" position. Anti-cheat bypass technique: fire WITH ±5ms
+  -- jitter so it doesn't look robotic.
+  GroundHit = function()
+    if Remotes.Knit.Controllers.MovementController then
+      return Remotes.Knit.Controllers.MovementController.reportGroundHit
+    end
+    return nil
+  end,
+  -- BedwarsPurchaseItem: auto-buy from item shop
+  BedwarsPurchaseItem = function()
+    if Remotes.Knit.Controllers.ShopController then
+      return Remotes.Knit.Controllers.ShopController.purchaseItem
+    end
+    return nil
+  end,
+}
+
+-- ─── Detection remotes — DO NOT FIRE ────────────────────────────────────
+-- Documented so future agents never call them. The Anticheat module
+-- references this list.
+Remotes.DETECTION_REMOTES = {
+  "SelfReport",
+  "VapeDetectionRedundancy",
+  "DetectionTest",
+  "VapeBanWave2",
+  "VapeBanWave2Test",
 }
 
 -- ─── Extract all remote names ───────────────────────────────────────────────

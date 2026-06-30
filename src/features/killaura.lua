@@ -72,14 +72,20 @@ function Killaura.attack(target)
 
   local selfpos = localRoot.Position
   local targetPos = target.RootPart.Position
-  local delta = targetPos - selfpos
-  local distance = delta.Magnitude
+  local distance = (targetPos - selfpos).Magnitude
 
-  -- Reach extension: move selfPosition toward target by the surplus over LEGIT_REACH
+  -- v1.3: use the Anticheat module's fireAttackEntity helper which has
+  -- the same selfPosition extension logic but is centralized + tested.
+  -- The inline logic is kept here for the single-file version where
+  -- Anticheat may not be in the _BW registry.
+  local Anticheat = _BW.Anticheat
+  if Anticheat and Anticheat.fireAttackEntity then
+    return Anticheat.fireAttackEntity(sword, target.Character, selfpos, targetPos)
+  end
+
+  -- Fallback (no Anticheat module)
   local dir = CFrame.lookAt(selfpos, targetPos).LookVector
   local extendedPos = selfpos + dir * math.max(distance - LEGIT_REACH, 0)
-
-  -- Fire the AttackEntity remote
   return Remotes.fire("AttackEntity", {
     weapon = sword,
     chargedAttack = { chargeRatio = 0 },

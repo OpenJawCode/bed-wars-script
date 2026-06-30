@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Bedwars Script — Before/After Comparison</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a0a;
+    color: #f0f2f8;
+    font-family: "Gotham", "Inter", system-ui, sans-serif;
+    padding: 40px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 { font-size: 32px; font-weight: 900; margin-bottom: 8px; }
+  h2 { font-size: 20px; font-weight: 700; margin-top: 32px; margin-bottom: 16px; color: #10b981; }
+  .subtitle { color: #6e788a; margin-bottom: 32px; }
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .compare-side {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .compare-side.bad { border-color: rgba(239, 68, 68, 0.4); }
+  .compare-side.good { border-color: rgba(16, 185, 129, 0.4); }
+  .compare-side img {
+    width: 100%;
+    border-radius: 8px;
+    display: block;
+  }
+  .compare-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+  .compare-label.bad { color: #ef4444; }
+  .compare-label.good { color: #10b981; }
+
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-top: 32px;
+  }
+  .summary-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .summary-num {
+    font-size: 32px;
+    font-weight: 900;
+    color: #10b981;
+  }
+  .summary-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #6e788a;
+    margin-top: 4px;
+  }
+
+  .fixes {
+    margin-top: 24px;
+    background: rgba(16, 185, 129, 0.05);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 8px;
+    padding: 20px;
+  }
+  .fixes h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #10b981;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .fixes ul { list-style: none; }
+  .fixes li {
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 13px;
+  }
+  .fixes li:last-child { border-bottom: none; }
+  .fixes .before { color: #ef4444; }
+  .fixes .after { color: #10b981; }
+  .fixes .arrow { color: #6e788a; padding: 0 8px; }
+</style>
+</head>
+<body>
+  <h1>Bedwars Script — UI v1.0 → v1.1 Comparison</h1>
+  <p class="subtitle">Motorola Edge 20 (393×852pt) · captured 2026-06-30 · audit 34/37 (91.9%)</p>
+
+  <div class="compare">
+    <div class="compare-side bad">
+      <div class="compare-label bad">Before — v1.0 (current on GitHub)</div>
+      <img src="preview-current-393.png" alt="v1.0 current state" />
+    </div>
+    <div class="compare-side good">
+      <div class="compare-label good">After — v1.1 (this rebuild)</div>
+      <img src="preview-new-393.png" alt="v1.1 new state" />
+    </div>
+  </div>
+
+  <h2>By the numbers</h2>
+  <div class="summary">
+    <div class="summary-card">
+      <div class="summary-num">380×480</div>
+      <div class="summary-label">v1.0 window (6.5pt margin)</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-num">369×699</div>
+      <div class="summary-label">v1.1 window (12pt margin, 85% vh)</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-num">0/0/0/0</div>
+      <div class="summary-label">v1.0 status: no search, no FPS, no ping, no panic</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-num">4/4</div>
+      <div class="summary-label">v1.1 status: search, FPS, ping, panic</div>
+    </div>
+  </div>
+
+  <div class="fixes">
+    <h3>What changed</h3>
+    <ul>
+      <li><span class="before">380×480 floating window, 6.5pt margin on 393pt width</span><span class="arrow">→</span><span class="after">369×699 full-width window, 12pt margin, 85% viewport height</span></li>
+      <li><span class="before">Plain green circle FAB (rbxassetid icon didn't load)</span><span class="arrow">→</span><span class="after">⚡ Unicode glyph, pulsing accent glow, FIXED (never moves on tap)</span></li>
+      <li><span class="before">Dragger fired on touch-down (FAB moved when you tried to tap)</span><span class="arrow">→</span><span class="after">8pt drag threshold (iOS HIG) — tap = open, drag = move</span></li>
+      <li><span class="before">No visual hierarchy, every row identical, emerald everywhere</span><span class="arrow">→</span><span class="after">Emerald for active, gold for values, red for danger, blue for info, icon column on every row</span></li>
+      <li><span class="before">No backdrop, no search, no status bar, no panic button</span><span class="arrow">→</span><span class="after">Backdrop dims game 55%, search in header, status bar with FPS/Ping/Active + ⚠ PANIC</span></li>
+      <li><span class="before">Tabs at bottom (cramped 70pt wide, 48pt tall)</span><span class="arrow">→</span><span class="after">Tabs at top (100pt wide, 48pt tall, horizontal scrollable, accent underline)</span></li>
+      <li><span class="before">Heavy glass (0.18-0.28 alpha, too opaque over gameplay)</span><span class="arrow">→</span><span class="after">Light glass (0.06-0.10 alpha, see the game through)</span></li>
+      <li><span class="before">Toggle ON was emerald fill + emerald knob (no contrast)</span><span class="arrow">→</span><span class="after">Toggle ON is emerald track + WHITE knob (iOS pattern)</span></li>
+      <li><span class="before">Mixed easing (Quad/Exponential/Linear scattered)</span><span class="arrow">→</span><span class="after">One easing function everywhere: Quint (Sin for ambient glow only)</span></li>
+      <li><span class="before">Panic only via RightCtrl (unreachable on touch)</span><span class="arrow">→</span><span class="after">⚠ PANIC in status bar (44pt, always visible, also RightCtrl)</span></li>
+    </ul>
+  </div>
+</body>
+</html>

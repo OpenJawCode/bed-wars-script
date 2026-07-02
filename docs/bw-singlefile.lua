@@ -1639,6 +1639,20 @@ do
       end
     )
   
+    -- v2.0: hover effect on FAB (subtle scale-up + glow boost)
+    fab.MouseEnter:Connect(function()
+      pcall(function()
+        TweenService:Create(fab, TweenInfo.new(0.20, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+          { Size = UDim2.fromOffset(Theme.Touch.FABSize + 4, Theme.Touch.FABSize + 4) }):Play()
+      end)
+    end)
+    fab.MouseLeave:Connect(function()
+      pcall(function()
+        TweenService:Create(fab, TweenInfo.new(0.20, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+          { Size = UDim2.fromOffset(Theme.Touch.FABSize, Theme.Touch.FABSize) }):Play()
+      end)
+    end)
+  
     return fab
   end
   
@@ -1723,6 +1737,20 @@ do
       Anim.press(panicBtn)
       task.delay(0.1, function() Anim.release(panicBtn) end)
       if onPanic then onPanic() end
+    end)
+  
+    -- v2.0: hover effect on panic button (intense red glow)
+    panicBtn.MouseEnter:Connect(function()
+      pcall(function()
+        TweenService:Create(panicBtn, TweenInfo.new(0.20, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+          { BackgroundColor3 = Color3.fromRGB(255, 80, 80), BackgroundTransparency = 0 }):Play()
+      end)
+    end)
+    panicBtn.MouseLeave:Connect(function()
+      pcall(function()
+        TweenService:Create(panicBtn, TweenInfo.new(0.20, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+          { BackgroundColor3 = Theme.Color.Danger, BackgroundTransparency = 0.2 }):Play()
+      end)
     end)
   
     return bar, fpsLabel, pingLabel, activeLabel
@@ -1868,8 +1896,25 @@ do
   
     -- Close button functionality
     trafficLights.Close.MouseButton1Click:Connect(function()
+      Input.haptic(0.3, 0.08)
       self:SetVisible(false)
     end)
+  
+    -- v2.0: hover effects on traffic light dots
+    local function addTrafficHover(dot, hoverColor)
+      local origColor = dot.BackgroundColor3
+      dot.MouseEnter:Connect(function()
+        TweenService:Create(dot, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+          { BackgroundColor3 = hoverColor, Size = UDim2.fromOffset(14, 14) }):Play()
+      end)
+      dot.MouseLeave:Connect(function()
+        TweenService:Create(dot, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+          { BackgroundColor3 = origColor, Size = UDim2.fromOffset(12, 12) }):Play()
+      end)
+    end
+    addTrafficHover(trafficLights.Close, Color3.fromRGB(255, 130, 130))   -- brighter red
+    addTrafficHover(trafficLights.Min,   Color3.fromRGB(255, 210, 80))     -- brighter yellow
+    addTrafficHover(trafficLights.Max,   Color3.fromRGB(80, 230, 100))    -- brighter green
   
     -- ─── Title + Subtitle (centered) ──────────────────────────────────────
     local titleGroup = Instance.new("Frame")
@@ -1972,6 +2017,20 @@ do
       corner.CornerRadius = UDim.new(1, 0)
       corner.Parent = dot
   
+      -- v2.0: hover effect on theme swatch (subtle scale-up)
+      dot.MouseEnter:Connect(function()
+        pcall(function()
+          TweenService:Create(dot, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+            { Size = UDim2.fromOffset(14, 14) }):Play()
+        end)
+      end)
+      dot.MouseLeave:Connect(function()
+        pcall(function()
+          TweenService:Create(dot, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+            { Size = UDim2.fromOffset(12, 12) }):Play()
+        end)
+      end)
+  
       -- v2.0: theme switching. Click a swatch → Theme.apply(name)
       -- → real-time color swap on existing UI elements.
       dot.MouseButton1Click:Connect(function()
@@ -2046,6 +2105,26 @@ do
     tabSearchBox.ClearTextOnFocus = false
     tabSearchBox.ZIndex = Theme.Z.WindowContent + 2
     self._tabSearchBox = tabSearchBox
+  
+    -- v2.0: Tab search filter. As the user types in the search box,
+    -- filter the visible tabs by name (case-insensitive substring match).
+    -- Empty search = show all tabs. Also remembers which tab was active
+    -- before filtering so we can restore on clear.
+    local _searchActiveTab = nil
+    local function _filterTabs(query)
+      query = (query or ""):lower()
+      for _, t in ipairs(self.tabs) do
+        local name = (t.Name or t.button.Name or ""):lower()
+        local visible = (query == "") or (string.find(name, query, 1, true) ~= nil)
+        if t.button then
+          t.button.Visible = visible
+        end
+      end
+    end
+    tabSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+      _filterTabs(tabSearchBox.Text)
+    end)
+    self._filterTabs = _filterTabs
   
     -- ─── Content area ──────────────────────────────────────────────────
     local contentArea = Instance.new("ScrollingFrame")
@@ -2240,6 +2319,7 @@ do
   
   function Library:CreateTab(name, iconSpec)
     local tab = {}
+    tab.Name = name  -- v2.0: used by tab search filter
     tab.sections = {}
   
     local page = Instance.new("ScrollingFrame")
@@ -2320,6 +2400,20 @@ do
         Anim.tabSwitch(t, t == tab and tab or nil)
       end
       self.pageLayout:JumpTo(page)
+    end)
+  
+    -- v2.0: hover effect on tab button (subtle bg tint)
+    btn.MouseEnter:Connect(function()
+      pcall(function()
+        TweenService:Create(btn, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+          { BackgroundTransparency = 0.85 }):Play()
+      end)
+    end)
+    btn.MouseLeave:Connect(function()
+      pcall(function()
+        TweenService:Create(btn, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+          { BackgroundTransparency = 1 }):Play()
+      end)
     end)
   
     tab.page = page
@@ -2542,6 +2636,21 @@ do
       state = not state
       render()
       if opts.Callback then task.spawn(opts.Callback, state) end
+    end)
+  
+    -- v2.0: hover effect on toggle row (subtle bg shift)
+    local _rowBaseColor = row.BackgroundColor3
+    row.MouseEnter:Connect(function()
+      pcall(function()
+        TweenService:Create(row, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+          { BackgroundColor3 = Color3.fromRGB(28, 34, 48) }):Play()
+      end)
+    end)
+    row.MouseLeave:Connect(function()
+      pcall(function()
+        TweenService:Create(row, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+          { BackgroundColor3 = _rowBaseColor }):Play()
+      end)
     end)
   
     table.insert(section.elements, toggle)
